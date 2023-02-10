@@ -86,11 +86,12 @@ def queries_from_features(keywords):
         "gene-phenotypes" :
             """
             CONSTRUCT {
-                ?wbdata ?rel1 ?pheno .
-                ?wbdata ?rel ?gene .} 
-                WHERE {
+                ?wbdata sio:001279 ?pheno .
+                ?wbdata nt:001 ?gene .} 
+            WHERE {
                 ?wbdata nt:001 ?gene .
                 ?gene rdf:type ?type .
+                ?wbdata sio:001279 ?pheno .
             FILTER (
                 ?type = sio:000985 || #protein coding gene
                 ?type = sio:010035 || # gene
@@ -102,12 +103,6 @@ def queries_from_features(keywords):
                 ?type = sio:001228 || # snRNA gene
                 ?type = sio:001229    # snoRNA gene
             )
-            ?gene rdfs:label ?glab .
-            # Get all phenotypes associated with those genes.
-            ?wbdata sio:001279 ?pheno .
-            ?pheno rdfs:label ?lab .
-            FILTER (?rel1 = sio:001279) .
-            FILTER (?rel = nt:001) .
             } limit 100
             """,
     }

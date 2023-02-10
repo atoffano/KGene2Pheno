@@ -1,7 +1,6 @@
-POLICY = 2import argparse
+import argparse
 from utils import *
-import kge
-
+import os
 
 def main():
     '''Parse the command line arguments'''
@@ -33,6 +32,11 @@ def main():
 
     args = parser.parse_args()
 
+    # Change directory
+    current_file_path = os.path.realpath(__file__)
+    current_dir = os.path.dirname(current_file_path)
+    os.chdir(current_dir)
+
     if args.query:
         load_by_query(args.query)
     elif args.dataset:
@@ -48,6 +52,7 @@ def main():
 
 def train_model(method, dataset, data_format):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
+        import kge
         kge.train(method, dataset, data_format)
     elif method == "MultiVERSE":
         pass
