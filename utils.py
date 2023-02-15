@@ -1,8 +1,11 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
+from tqdm import tqdm
+import warnings
 
 def load_celegans(keywords):
     queries = queries_from_features(keywords)
     query_db(queries)
+
 
 def load_by_query(query):
     query = add_prefixes(query)
@@ -13,11 +16,10 @@ def query_db(queries):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
     sparql = SPARQLWrapper("http://cedre-14a.med.univ-rennes1.fr:3030/WS285_27sep2022_rdf/sparql")
-    
-    for query in queries:
+    warnings.filterwarnings("ignore")
+    for query in tqdm(queries, desc="Querying SPARQL endpoint..."):
 
         # Set the query
-        print(query)
         sparql.setQuery(query)
         sparql.setReturnFormat(JSON)
 
@@ -30,7 +32,8 @@ def query_db(queries):
                 for s, p, o in results:
                     f.write(f'{s} {p} {o}\n')
         except:
-            raise Exception("Check that the query output is a triple like ?s ?p ?o")
+            raise Exception("Check that the query output is a triple like ?s ?p ?o. Reminder: You must use a CONSTRUCT query")
+    print("Query executed !")
 
 def queries_from_features(keywords):
     features = {       

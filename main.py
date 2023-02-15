@@ -40,20 +40,29 @@ def main():
     if args.query:
         load_by_query(args.query)
     elif args.dataset:
-        if args.dataset == "celegans":
-            dataset = load_celegans(args.keywords)
-        elif args.dataset == "ogb_biokg":
-            pass
-            #data_biokg = load_biokg(args.keywords)
+        match args.dataset:
+            case "celegans":
+                load_celegans(args.keywords)
+                dataset = "query_result.txt"
+            case "ogb_biokg":
+                pass
+                #data_biokg = load_biokg(args.keywords)
+            case "toy-example":
+                dataset = "toy-example.txt"
+            case _:
+                raise Exception("Dataset not supported.")
     else:
-        raise Exception("Please provide either a dataset or a query")
+        raise Exception("No dataset or query provided.")
 
-    train_model(args.method, args.dataset, args.data_format)
 
-def train_model(method, dataset, data_format):
+    train_model(args.method, dataset)
+    if dataset != 'toy-example.txt':
+        os.remove(dataset) 
+
+def train_model(method, dataset):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        import kge
-        kge.train(method, dataset, data_format)
+        import methods.TorchKGE.kge as kge
+        kge.train(method, dataset)
     elif method == "MultiVERSE":
         pass
     elif method == "PhenoGeneRanker":
