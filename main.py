@@ -25,19 +25,23 @@ def main():
     os.chdir(current_dir)
 
     if args.query:
-        load_by_query(args.query)
-    elif args.dataset:
+        dataset = load_by_query(args.query)
+
+    elif args.dataset and args.method != "PhenoGeneRanker":
         match args.dataset:
             case "celegans":
-                load_celegans(args.keywords)
-                dataset = "query_result.txt"
+                dataset = load_celegans(args.keywords, sep=' ')
             case "ogb_biokg":
                 pass
-                #data_biokg = load_biokg(args.keywords)
+                #dataset = load_biokg(args.keywords)
             case "toy-example":
                 dataset = "toy-example.txt"
             case _:
                 raise Exception("Dataset not supported.")
+            
+    elif args.dataset and args.method == "PhenoGeneRanker":
+        dataset = load_pgr(args.keywords, sep='\t')
+   
     else:
         raise Exception("No dataset or query provided.")
 

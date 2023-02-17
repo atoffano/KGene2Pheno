@@ -1,18 +1,48 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 from tqdm import tqdm
 import warnings
+import os
 
-def load_celegans(keywords):
+def load_celegans(keywords, sep):
     queries = queries_from_features(keywords)
-    query_db(queries)
+    query_db(queries, sep)
+    return 'query_result.txt'
 
+def load_pgr(keywords, sep):
+    feature_type = {
+        "pgr-gene-pheno" : "bipartite",
+        "pgr-gene-gene" : "gene",
+        "pgr-gene-disease" : "bipartite",
+        "pgr-pheno-pheno" : "pheno",
+        "pgr-disease-disease" : "pheno",
+    }
+
+    for keyword in keywords:
+        # Retrieve data files
+        load_celegans([keyword], sep)
+        with open('query_result.txt', 'r') as f:
+            lines = f.readlines()
+        with open(f'{keyword}.txt', 'a') as f:
+            f.write(f'from{sep}to{sep}weight')
+            for line in lines:
+                parsed = line.split(sep)
+                parsed = f'{parsed[0]}{sep}{parsed[2]}{sep}1.000'
+                f.write(parsed)
+        os.remove('query_result.txt')
+
+    # Create input file
+    with open('input.txt', 'a') as f:
+        f.write(f'type{sep}filename\n')
+        for keyword in keywords:
+            f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
+    return 'input.txt'
 
 def load_by_query(query):
     query = add_prefixes(query)
     query_db([query])
     
 
-def query_db(queries):
+def query_db(queries, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
     sparql = SPARQLWrapper("http://cedre-14a.med.univ-rennes1.fr:3030/WS285_27sep2022_rdf/sparql")
@@ -30,7 +60,7 @@ def query_db(queries):
         try:
             with open('query_result.txt', 'a') as f:
                 for s, p, o in results:
-                    f.write(f'{s} {p} {o}\n')
+                    f.write(f'{s}{sep}{p}{sep}{o}\n')
         except:
             raise Exception("Check that the query output is a triple like ?s ?p ?o. Reminder: You must use a CONSTRUCT query")
     print("Query executed !")
@@ -134,7 +164,94 @@ def queries_from_features(keywords):
                 ?type = sio:001229    # snoRNA gene
             )            
             }
+            """,
+        
+        "pgr-gene-gene" :
             """
+            CONSTRUCT {
+                ?gene1 nt:assoc ?gene2 .
+            }
+            WHERE {
+                ?wbinter nt:001 ?gene1 .
+                ?wbinter nt:001 ?gene2 .
+                ?wbinter rdfs:type ?rel .
+                FILTER (?rel = "Physical")
+                FILTER (?gene1 != ?gene2)
+            }
+            """,
+        
+        "pgr-gene-pheno" :
+            """
+            CONSTRUCT {
+                ?gene nt:assoc_pheno ?pheno .
+            }
+            WHERE {
+                ?wbdata nt:001 ?gene .
+                ?gene rdf:type ?type .
+                ?wbdata sio:001279 ?pheno .
+            FILTER (
+                ?type = sio:000985 || #protein coding gene
+                ?type = sio:010035 || # gene
+                ?type = sio:000988 || # pseudogene
+                ?type = sio:001230 || # tRNA gene
+                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                ?type = sio:001182 || # rRNA gene
+                ?type = sio:001227 || # scRNA gene
+                ?type = sio:001228 || # snRNA gene
+                ?type = sio:001229    # snoRNA gene
+            )
+            }
+            """,
+        
+        "pgr-gene-disease" :
+            """
+            CONSTRUCT {
+                ?gene nt:assoc_doid ?disease .
+            }
+            WHERE {
+                ?wbdata nt:001 ?gene .
+                ?gene rdf:type ?type .
+            FILTER (
+                ?type = sio:000985 || #protein coding gene
+                ?type = sio:010035 || # gene
+                ?type = sio:000988 || # pseudogene
+                ?type = sio:001230 || # tRNA gene
+                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                ?type = sio:001182 || # rRNA gene
+                ?type = sio:001227 || # scRNA gene
+                ?type = sio:001228 || # snRNA gene
+                ?type = sio:001229    # snoRNA gene
+            )
+            ?gene rdfs:label ?glab .
+            
+            # Get all diseases associated with those genes.
+            ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
+
+            }
+            """,
+                    
+        "pgr-disease-disease" :
+            """
+            CONSTRUCT {
+                ?disease rdfs:subClassOf ?disease2 .
+            }
+            WHERE {
+                ?wbdata nt:009 ?disease .
+                ?disease rdfs:subClassOf ?disease2 .
+
+            }
+            """,
+        
+        "pgr-pheno-pheno" :
+            """
+            CONSTRUCT {
+                ?pheno rdfs:subClassOf ?pheno2 .
+            }
+            WHERE {
+                ?wbdata sio:001279 ?pheno .
+                ?pheno rdfs:subClassOf ?pheno2 .
+            }
+            """,
     }
     
     ret = []
