@@ -32,7 +32,7 @@ def load_pgr(keywords, sep):
 
     # Create input file
     with open('input.txt', 'a') as f:
-        f.write(f'type{sep}filename\n')
+        f.write(f'type{sep}file_name\n')
         for keyword in keywords:
             f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
     return 'input.txt'
