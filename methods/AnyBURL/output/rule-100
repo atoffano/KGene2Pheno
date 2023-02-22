@@ -1,0 +1,6 @@
+37	35	0.9459459459459459	http://www.w3.org/1999/02/22-rdf-syntax-ns#type(X,http://semanticscience.org/resource/SIO_000985) <= http://www.semanticweb.org/needed-terms#001(A,X)
+51	9	0.17647058823529413	http://semanticscience.org/resource/SIO_001279(X,Y) <= http://www.semanticweb.org/needed-terms#001(X,A), http://www.semanticweb.org/needed-terms#001(B,A), http://semanticscience.org/resource/SIO_001279(B,Y)
+53	5	0.09433962264150944	http://semanticscience.org/resource/SIO_001279(X,https://wormbase.org/species/all/phenotype/WBPhenotype:0000917) <= http://www.semanticweb.org/needed-terms#001(X,A)
+622	7	0.011254019292604502	http://www.semanticweb.org/needed-terms#001(X,Y) <= http://semanticscience.org/resource/SIO_001279(X,A), http://semanticscience.org/resource/SIO_001279(B,A), http://www.semanticweb.org/needed-terms#001(B,Y)
+53	10	0.18867924528301888	http://semanticscience.org/resource/SIO_001279(X,https://wormbase.org/species/all/phenotype/WBPhenotype:0000574) <= http://www.semanticweb.org/needed-terms#001(X,A)
+53	32	0.6037735849056604	http://semanticscience.org/resource/SIO_001279(X,https://wormbase.org/species/all/phenotype/WBPhenotype:0000704) <= http://www.semanticweb.org/needed-terms#001(X,A)

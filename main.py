@@ -75,12 +75,14 @@ def train_model(method, dataset):
                     raise Exception("AnyBURL expects that each identifier that appears in the data file starts with a alphabetic character and consists of at least 2 letters.")
         
         # Add training path to config file
-        with open('AnyBURL/config-learn.properties', 'a') as f:
+        with open('methods/AnyBURL/config-learn.properties', 'a') as f:
             lines = f.readlines()
             f.write(f'PATH_TRAINING = {dataset}')
         
+            subprocess.run(["java", "-Xmx4G", "-cp", "methods/AnyBURL/AnyBURL-23-1.jar", "de.unima.ki.anyburl.Learn", "config-learn.properties"], capture_output=True)
+
         # Remove the changes made to the config file
-        with open('AnyBURL/config-learn.properties', 'w') as f:
+        with open('methods/AnyBURL/config-learn.properties', 'w') as f:
             f.write(lines)
 
     elif method == "GraphLP":
