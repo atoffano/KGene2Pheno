@@ -1,1 +1,2 @@
-# graph_dl
+# Gene-Phenotype relation prediction
+This repository stores the code required to derive insight from the wormbase database, by predicting links between genes and phenotypes in *C.Elegans* through various knowledge graph completion models.
