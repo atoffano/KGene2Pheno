@@ -13,8 +13,8 @@ def load_pgr(keywords, sep):
         "pgr-gene-pheno" : "bipartite",
         "pgr-gene-gene" : "gene",
         "pgr-gene-disease" : "bipartite",
-        "pgr-pheno-pheno" : "pheno",
-        "pgr-disease-disease" : "pheno",
+        "pgr-pheno-pheno" : "phenotype",
+        "pgr-disease-disease" : "phenotype",
     }
 
     for keyword in keywords:
@@ -23,10 +23,10 @@ def load_pgr(keywords, sep):
         with open('query_result.txt', 'r') as f:
             lines = f.readlines()
         with open(f'{keyword}.txt', 'a') as f:
-            f.write(f'from{sep}to{sep}weight')
+            f.write(f'from{sep}to{sep}weight\n')
             for line in lines:
                 parsed = line.split(sep)
-                parsed = f'{parsed[0]}{sep}{parsed[2]}{sep}1.000'
+                parsed = parsed[0] + sep + parsed[2].strip('\n') + sep + '1.000\n'
                 f.write(parsed)
         os.remove('query_result.txt')
 
@@ -81,7 +81,6 @@ def queries_from_features(keywords):
                 FILTER (?rel = "Physical")
                 FILTER (?gene1 != ?gene2)
             }
-            LIMIT 10 # REMOVE ONCE TESTING DONE
             """,
 
         "gene-diseases" : 
@@ -136,7 +135,7 @@ def queries_from_features(keywords):
                 ?type = sio:001228 || # snRNA gene
                 ?type = sio:001229    # snoRNA gene
             )
-            } limit 100
+            }
             """,
         
         "toy-example" :
