@@ -87,6 +87,10 @@ def train_model(method, dataset):
 
     elif method == "GraphLP":
         pass
+    elif method == "Relphormer":
+        gen_vocab(dataset)
+        match_id_names(dataset)
+        split_dataset(dataset)
 
 
 if __name__ == "__main__":

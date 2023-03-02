@@ -37,6 +37,50 @@ def load_pgr(keywords, sep):
             f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
     return 'input.txt'
 
+def split_dataset(dataset, split_ratio=0.8, dev_set=True):
+    """Takes in a .tsv file of triples and splits it into a train, dev and test set."""
+    import random
+
+    # set the paths to the output train and test TSV files
+    train_file = "train.tsv"
+    test_file = "test.tsv"
+
+    # open the input and output files
+    with open(dataset, "r") as in_file, open(train_file, "w") as out_train_file, open(test_file, "w") as out_test_file:
+        # read the lines from the input file
+        lines = in_file.readlines()
+
+        # shuffle the lines randomly
+        random.shuffle(lines)
+
+        # calculate the number of lines for the train and test files
+        num_train_lines = int(len(lines) * split_ratio)
+        num_test_lines = len(lines) - num_train_lines
+
+        # write the lines to the train and test files
+        out_train_file.writelines(lines[:num_train_lines])
+        out_test_file.writelines(lines[num_train_lines:])
+    
+    if dev_set:
+        # set the paths to the output train and test TSV files
+        dev_file = "dev.tsv"
+
+        # open the input and output files
+        with open(train_file, "r") as in_file:
+            # read the lines from the input file
+            lines = in_file.readlines()
+        os.remove(train_file)
+        
+        with open(train_file, "r") as in_file, open(dev_file, "w") as out_dev_file:
+            # calculate the number of lines for the train and test files
+            num_dev_lines = int(len(lines) * split_ratio)
+            num_train_lines = len(lines) - num_dev_lines
+
+            # write the lines to the train and test files
+            out_train_file.writelines(lines[:num_train_lines])
+            out_dev_file.writelines(lines[num_train_lines:])
+
+
 def load_by_query(query):
     query = add_prefixes(query)
     query_db([query])
