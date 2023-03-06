@@ -224,9 +224,41 @@ def queries_from_features(keywords):
                 ?type = sio:001228 || # snRNA gene
                 ?type = sio:001229    # snoRNA gene
             )
+            FILTER (REGEX(STR(?goid), "^" + STR(go:)))
             }
             """,    
+
         
+        "gene-lifestage" :
+            """
+            CONSTRUCT {
+                ?wbdata ?rel ?wbls
+                ?wbdata nt:001 ?gene .
+                ?gene rdf:type ?type .
+} 
+            WHERE {
+                ?wbdata ?rel ?wbls
+              FILTER (
+                ?rel = ro:0002092 || #protein coding gene
+                ?rel = ro:0002490 || #protein coding gene
+                ?rel = bfo:0000066 || #protein coding gene
+                ?rel = nt:002 #protein coding gene
+            )
+            FILTER (
+                ?type = sio:000985 || #protein coding gene
+                ?type = sio:010035 || # gene
+                ?type = sio:000988 || # pseudogene
+                ?type = sio:001230 || # tRNA gene
+                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                ?type = sio:001182 || # rRNA gene
+                ?type = sio:001227 || # scRNA gene
+                ?type = sio:001228 || # snRNA gene
+                ?type = sio:001229    # snoRNA gene
+            )
+            FILTER (REGEX(STR(?goid), "^" + STR(wbls:)))
+            }
+            """, 
+
         "disease-ontology" :
             """
             CONSTRUCT {
