@@ -80,7 +80,6 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
             out_train_file.writelines(lines[:num_train_lines])
             out_dev_file.writelines(lines[num_train_lines:])
 
-
 def load_by_query(query):
     query = add_prefixes(query)
     query_db([query])
@@ -182,6 +181,76 @@ def queries_from_features(keywords):
             }
             """,
         
+        "gene-go" :
+            """
+            CONSTRUCT {
+                ?wbdata ?rel ?goid
+                ?wbdata nt:001 ?gene .
+                ?gene rdf:type ?type .
+} 
+            WHERE {
+                ?wbdata ?rel ?goid
+              FILTER (
+                ?rel = ro:0001025 || #protein coding gene
+                ?rel = ro:0002213 || #protein coding gene
+                ?rel = ro:0002326 || #protein coding gene
+                ?rel = ro:000067 || #protein coding gene
+                ?rel = ro:0004032 || #protein coding gene
+                ?rel = ro:0002411 || #protein coding gene
+                ?rel = ro:0002264 || #protein coding gene
+                ?rel = ro:0002234 || #protein coding gene
+                ?rel = ro:0002629 || #protein coding gene
+                ?rel = ro:0004035 || #protein coding gene
+                ?rel = ro:0002211 || #protein coding gene
+                ?rel = ro:0002263 || #protein coding gene
+                ?rel = ro:0002020 || #protein coding gene
+                ?rel = ro:0000057 || #protein coding gene
+                ?rel = ro:0002491 || #protein coding gene
+                ?rel = ro:0004033 || #protein coding gene
+                ?rel = ro:0002212 || #protein coding gene
+                ?rel = ro:0002092 || #protein coding gene
+                ?rel = ro:0002490 || #protein coding gene
+                ?rel = bfo:0000066 || #protein coding gene
+                ?rel = sio:0000068 #protein coding gene
+            )
+            FILTER (
+                ?type = sio:000985 || #protein coding gene
+                ?type = sio:010035 || # gene
+                ?type = sio:000988 || # pseudogene
+                ?type = sio:001230 || # tRNA gene
+                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                ?type = sio:001182 || # rRNA gene
+                ?type = sio:001227 || # scRNA gene
+                ?type = sio:001228 || # snRNA gene
+                ?type = sio:001229    # snoRNA gene
+            )
+            }
+            """,    
+        
+        "disease-ontology" :
+            """
+            CONSTRUCT {
+                ?disease rdfs:subClassOf ?disease2 .
+            }
+            ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
+            ?wbdata ro:0002331 ?omim . # refers to corresponding human equivalent of a celegans disease
+            ?wbdata sio:000558 ?human_ortholog . # human ortholog associated with current gene
+            FILTER (?omim != 	<https://www.omim.org/entry/>)
+            ?disease rdfs:label ?lab .
+            }
+            """,
+            
+        "phenotype-ontology" :
+            """
+            CONSTRUCT {
+                ?pheno rdfs:subClassOf ?pheno2 .
+            }
+            WHERE {
+                ?wbdata sio:001279 ?pheno .
+                ?pheno rdfs:subClassOf ?pheno2 .
+            }
+            """,
+
         "toy-example" :
             """
             CONSTRUCT {
