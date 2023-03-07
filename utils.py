@@ -88,7 +88,7 @@ def load_by_query(query):
 def query_db(queries, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
-    sparql = SPARQLWrapper("http://cedre-14a.med.univ-rennes1.fr:3030/WS285_27sep2022_rdf/sparql")
+    sparql = SPARQLWrapper("http://cedre-16a.med.univ-rennes1.fr:3030/#/dataset/WS286_06march2023_RDF/sparql")
     warnings.filterwarnings("ignore")
     for query in tqdm(queries, desc="Querying SPARQL endpoint..."):
 
@@ -110,165 +110,123 @@ def query_db(queries, sep):
 
 def queries_from_features(keywords):
     features = {       
-        "gene-gene" : 
+        "gene" : 
             """
             CONSTRUCT {
-                ?wbinter nt:001 ?gene1 .
-                ?wbinter nt:001 ?gene2 .
-                ?wbinter rdfs:type ?rel .
+                ?geneid rdf:type ?type .
+                ?geneid rdf:label ?lab .
             }
             WHERE {
-                ?wbinter nt:001 ?gene1 .
-                ?wbinter nt:001 ?gene2 .
-                ?wbinter rdfs:type ?rel .
-                FILTER (?rel = "Physical")
-                FILTER (?gene1 != ?gene2)
+                ?geneid rdf:type ?type .
+                ?geneid rdfs:label ?lab .
+                FILTER (
+                    ?type = sio:000985 || #protein coding gene
+                    ?type = sio:010035 || # gene
+                    ?type = sio:000988 || # pseudogene
+                    ?type = sio:001230 || # tRNA gene
+                    ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                    ?type = sio:001182 || # rRNA gene
+                    ?type = sio:001227 || # scRNA gene
+                    ?type = sio:001228 || # snRNA gene
+                    ?type = sio:001229    # snoRNA gene
+                )
             }
             """,
 
-        "gene-diseases" : 
-            """
+        "phenotype" :
+           """
             CONSTRUCT {
-                ?wbdata nt:009 ?disease .
-                ?wbdata ro:0002331 ?omim .
-                ?wbdata sio:000558 ?human_ortholog .
+                ?wbpheno nt:001 ?geneid .
+                ?wbpheno ?rel ?pheno .
             }
             WHERE {
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            ?gene rdfs:label ?glab .
-            
-            # Get all diseases associated with those genes.
-            ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
-            ?wbdata ro:0002331 ?omim . # refers to corresponding human equivalent of a celegans disease
-            ?wbdata sio:000558 ?human_ortholog . # human ortholog associated with current gene
-            FILTER (?omim != 	<https://www.omim.org/entry/>)
-            ?disease rdfs:label ?lab .
+                ?wbpheno nt:001 ?geneid .
+                ?wbpheno ?rel ?pheno .
+                FILTER(?rel = sio:000281|| ?rel = sio:001279)
+                ?wbpheno sio:000772 ?eco .
+  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) # Exclude go: annotations
             }
             """,
-        
-        "gene-phenotypes" :
-            """
-            CONSTRUCT {
-                ?wbdata sio:001279 ?pheno .
-                ?wbdata nt:001 ?gene .} 
-            WHERE {
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-                ?wbdata sio:001279 ?pheno .
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            }
-            """,
-        
-        "gene-go" :
-            """
-            CONSTRUCT {
-                ?wbdata ?rel ?goid
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-} 
-            WHERE {
-                ?wbdata ?rel ?goid
-              FILTER (
-                ?rel = ro:0001025 || #protein coding gene
-                ?rel = ro:0002213 || #protein coding gene
-                ?rel = ro:0002326 || #protein coding gene
-                ?rel = ro:000067 || #protein coding gene
-                ?rel = ro:0004032 || #protein coding gene
-                ?rel = ro:0002411 || #protein coding gene
-                ?rel = ro:0002264 || #protein coding gene
-                ?rel = ro:0002234 || #protein coding gene
-                ?rel = ro:0002629 || #protein coding gene
-                ?rel = ro:0004035 || #protein coding gene
-                ?rel = ro:0002211 || #protein coding gene
-                ?rel = ro:0002263 || #protein coding gene
-                ?rel = ro:0002020 || #protein coding gene
-                ?rel = ro:0000057 || #protein coding gene
-                ?rel = ro:0002491 || #protein coding gene
-                ?rel = ro:0004033 || #protein coding gene
-                ?rel = ro:0002212 || #protein coding gene
-                ?rel = ro:0002092 || #protein coding gene
-                ?rel = ro:0002490 || #protein coding gene
-                ?rel = bfo:0000066 || #protein coding gene
-                ?rel = sio:0000068 #protein coding gene
-            )
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            FILTER (REGEX(STR(?goid), "^" + STR(go:)))
-            }
-            """,    
 
-        
-        "gene-lifestage" :
-            """
+        "interaction" :
+           """
             CONSTRUCT {
-                ?wbdata ?rel ?wbls
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-} 
-            WHERE {
-                ?wbdata ?rel ?wbls
-              FILTER (
-                ?rel = ro:0002092 || #protein coding gene
-                ?rel = ro:0002490 || #protein coding gene
-                ?rel = bfo:0000066 || #protein coding gene
-                ?rel = nt:002 #protein coding gene
-            )
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            FILTER (REGEX(STR(?goid), "^" + STR(wbls:)))
+                ?wbinter nt:001 ?geneid1 .
+                ?wbinter nt:001 ?geneid2 .
+                ?wbinter  sio:000628 ?interaction_type
             }
-            """, 
+            WHERE {
+                ?wbinter nt:001 ?geneid1 .
+                ?wbinter nt:001 ?geneid2 .
+                ?wbinter rdf:type ?rel .
+ 				?wbinter  sio:000628 ?interaction_type .
+                FILTER (?geneid1 != ?geneid2)
+            }
+            """,
+
+        "disease" :
+           """
+            CONSTRUCT {    
+               ?wbdisease nt:001 ?geneid .
+               ?wbdisease nt:009 ?doid .
+            }
+            WHERE {
+              ?wbdisease nt:001 ?geneid .
+              ?wbdisease nt:009 ?doid . # refers to disease associated with celegans gene
+              FILTER NOT EXISTS{ ?wbdisease sio:000772 <http://purl.obolibrary.org/obo/ECO_0000201>. }  # without ortholog
+            }
+            """,
+
+          "disease_plus_ortho" :
+           """
+            CONSTRUCT {    
+               ?wbdisease nt:001 ?geneid .
+               ?wbdisease nt:009 ?doid .
+            }
+            WHERE {
+              ?wbdisease nt:001 ?geneid .
+              ?wbdisease nt:009 ?doid . # refers to disease associated with celegans gene
+            }
+            """,
+
+        "expression_value" :
+           """
+            CONSTRUCT {
+                ?wbexpr_val nt:001 ?geneid .
+                ?wbexpr_val sio:000300 ?expr_value .
+                ?wbexpr_val nt:002 ?lifestage .                
+            }
+            WHERE {
+                ?wbexpr_val nt:001 ?geneid .
+                ?wbexpr_val sio:000300 ?expr_value .
+                ?wbexpr_val nt:002 ?lifestage .
+            }
+            """,
+
+        "expression_pattern" :
+           """
+            CONSTRUCT {                
+                ?wbexpr_pat nt:001 ?geneid .
+                ?wbexpr_pat nt:004 ?expr_id .
+                ?wbexpr_pat nt:002 ?wblifestage .
+                
+            }
+            WHERE {
+                ?wbexpr_pat nt:001 ?geneid .
+                ?wbexpr_pat nt:004 ?expr_id .
+                ?wbexpr_pat nt:002 ?wblifestage .
+                
+            }
+            """,
 
         "disease-ontology" :
             """
             CONSTRUCT {
                 ?disease rdfs:subClassOf ?disease2 .
             }
+            WHERE {
             ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
-            ?wbdata ro:0002331 ?omim . # refers to corresponding human equivalent of a celegans disease
-            ?wbdata sio:000558 ?human_ortholog . # human ortholog associated with current gene
-            FILTER (?omim != 	<https://www.omim.org/entry/>)
-            ?disease rdfs:label ?lab .
+            ?disease rdfs:subClassOf+ ?disease2 .
             }
             """,
             
@@ -279,7 +237,7 @@ def queries_from_features(keywords):
             }
             WHERE {
                 ?wbdata sio:001279 ?pheno .
-                ?pheno rdfs:subClassOf ?pheno2 .
+                ?pheno rdfs:subClassOf* ?pheno2 .
             }
             """,
 
@@ -308,94 +266,7 @@ def queries_from_features(keywords):
                 ?type = sio:001229    # snoRNA gene
             )            
             }
-            """,
-        
-        "pgr-gene-gene" :
             """
-            CONSTRUCT {
-                ?gene1 nt:assoc ?gene2 .
-            }
-            WHERE {
-                ?wbinter nt:001 ?gene1 .
-                ?wbinter nt:001 ?gene2 .
-                ?wbinter rdfs:type ?rel .
-                FILTER (?rel = "Physical")
-                FILTER (?gene1 != ?gene2)
-            }
-            """,
-        
-        "pgr-gene-pheno" :
-            """
-            CONSTRUCT {
-                ?gene nt:assoc_pheno ?pheno .
-            }
-            WHERE {
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-                ?wbdata sio:001279 ?pheno .
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            }
-            """,
-        
-        "pgr-gene-disease" :
-            """
-            CONSTRUCT {
-                ?gene nt:assoc_doid ?disease .
-            }
-            WHERE {
-                ?wbdata nt:001 ?gene .
-                ?gene rdf:type ?type .
-            FILTER (
-                ?type = sio:000985 || #protein coding gene
-                ?type = sio:010035 || # gene
-                ?type = sio:000988 || # pseudogene
-                ?type = sio:001230 || # tRNA gene
-                ?type = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
-                ?type = sio:001182 || # rRNA gene
-                ?type = sio:001227 || # scRNA gene
-                ?type = sio:001228 || # snRNA gene
-                ?type = sio:001229    # snoRNA gene
-            )
-            ?gene rdfs:label ?glab .
-            
-            # Get all diseases associated with those genes.
-            ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
-
-            }
-            """,
-                    
-        "pgr-disease-disease" :
-            """
-            CONSTRUCT {
-                ?disease rdfs:subClassOf ?disease2 .
-            }
-            WHERE {
-                ?wbdata nt:009 ?disease .
-                ?disease rdfs:subClassOf ?disease2 .
-
-            }
-            """,
-        
-        "pgr-pheno-pheno" :
-            """
-            CONSTRUCT {
-                ?pheno rdfs:subClassOf ?pheno2 .
-            }
-            WHERE {
-                ?wbdata sio:001279 ?pheno .
-                ?pheno rdfs:subClassOf ?pheno2 .
-            }
-            """,
     }
     
     ret = []

@@ -60,8 +60,6 @@ def train_model(method, dataset):
         pass
     elif method == "DeepPheno":
         pass
-    elif method == "MHGCN":
-        pass
     elif method == "HybridGNN":
         pass
     elif method == "AnyBURL":
