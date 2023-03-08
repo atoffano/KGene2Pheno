@@ -26,6 +26,11 @@ def main():
     current_dir = os.path.dirname(current_file_path)
     os.chdir(current_dir)
 
+    # Create log file
+    log_file = open(f"log/{dt.now().replace(' ', '_')}_{args.method}.log", "w")
+    sys.stdout = log_file
+    sys.stderr = log_file
+
     if args.query:
         dataset = load_by_query(args.query)
 
@@ -52,6 +57,11 @@ def main():
     if dataset != 'toy-example.txt':
         os.remove(dataset) 
 
+    # Close log file
+    log_file.close()
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+    
 def train_model(method, dataset):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
         import methods.TorchKGE.kge as kge
@@ -94,12 +104,4 @@ def train_model(method, dataset):
 
 
 if __name__ == "__main__":
-    log_file = open("output.log", "w")
-    sys.stdout = log_file
-    sys.stderr = log_file
-
     main()
-
-    log_file.close()
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
