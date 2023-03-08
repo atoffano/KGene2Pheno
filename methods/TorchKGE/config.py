@@ -1,8 +1,8 @@
 # required for all methods
 eval_epoch = 20  # do link prediction evaluation each 20 epochs
-n_epochs = 1
+n_epochs = 20
 patience = 40
-batch_size = 1024
+batch_size = 64
 lr = 0.0004
 loss_fn = 'margin'  # one of 'margin', 'bce', 'logistic'.
 margin = 0.5 # if loss_fn == 'margin'

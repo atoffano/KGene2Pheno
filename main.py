@@ -1,6 +1,8 @@
 import argparse
 from utils import *
 import os
+import sys
+
 
 def main():
     '''Parse the command line arguments'''
@@ -92,4 +94,12 @@ def train_model(method, dataset):
 
 
 if __name__ == "__main__":
+    log_file = open("output.log", "w")
+    sys.stdout = log_file
+    sys.stderr = log_file
+
     main()
+
+    log_file.close()
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__

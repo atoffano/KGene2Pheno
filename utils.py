@@ -2,6 +2,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from tqdm import tqdm
 import warnings
 import os
+from datetime import datetime as dt
 
 def load_celegans(keywords, sep):
     queries = queries_from_features(keywords)
@@ -88,7 +89,7 @@ def load_by_query(query):
 def query_db(queries, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
-    sparql = SPARQLWrapper("http://cedre-16a.med.univ-rennes1.fr:3030/#/dataset/WS286_06march2023_RDF/sparql")
+    sparql = SPARQLWrapper("http://cedre-16a.med.univ-rennes1.fr:3030/WS286_06march2023_RDF/sparql")
     warnings.filterwarnings("ignore")
     for query in tqdm(queries, desc="Querying SPARQL endpoint..."):
 
@@ -103,10 +104,13 @@ def query_db(queries, sep):
         try:
             with open('query_result.txt', 'a') as f:
                 for s, p, o in results:
+                    if any(x.toPython() == '' for x in (s, p, o)): # Checks if the triple is complete
+                        continue
                     f.write(f'{s}{sep}{p}{sep}{o}\n')
+                    
         except:
             raise Exception("Check that the query output is a triple like ?s ?p ?o. Reminder: You must use a CONSTRUCT query")
-    print("Query executed !")
+    print(dt.now + " Query executed !")
 
 def queries_from_features(keywords):
     features = {       
@@ -237,7 +241,7 @@ def queries_from_features(keywords):
             }
             WHERE {
                 ?wbdata sio:001279 ?pheno .
-                ?pheno rdfs:subClassOf* ?pheno2 .
+                ?pheno rdfs:subClassOf+ ?pheno2 .
             }
             """,
 

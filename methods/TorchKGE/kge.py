@@ -1,5 +1,6 @@
 import pandas as pd
 from tqdm import tqdm
+from datetime import datetime as dt
 
 import torch
 from ignite.engine import Engine, Events
@@ -78,9 +79,9 @@ def train(method, dataset):
     dataloader = DataLoader(kg_train, batch_size=batch_size, use_cuda='None')
     evaluator = LinkPredictionEvaluator(model, kg_val)
     
-    print('Size of training set: {} triples'.format(len(kg_train)))
-    print('Size of validation set: {} triples'.format(len(kg_val)))
-    print('Size of test set: {} triples'.format(len(kg_test)))
+    print(dt.now() + ' Size of training set: {} triples'.format(len(kg_train)))
+    print(dt.now() + ' Size of validation set: {} triples'.format(len(kg_val)))
+    print(dt.now() + ' Size of test set: {} triples'.format(len(kg_test)) + '\n')
     
     # Move everything to CUDA if available
     use_cuda = cuda.is_available()
@@ -110,8 +111,9 @@ def train(method, dataset):
             optimizer.step()
 
             running_loss += loss.item()
-        print('Epoch {} | mean loss: {:.5f}'.format(epoch + 1,running_loss / len(dataloader)))
+        print('\n' + dt.now() + ' Epoch {} | mean loss: {:.5f}'.format(epoch + 1, running_loss / len(dataloader)))
         model.normalize_parameters()
 
+    print(dt.now() + ' - Evaluating..')
     evaluator.evaluate(b_size=64, verbose=True)
     evaluator.print_results()
