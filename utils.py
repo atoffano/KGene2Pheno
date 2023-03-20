@@ -5,6 +5,7 @@ import os
 from datetime import datetime as dt
 
 def load_celegans(keywords, sep):
+    print(f'{dt.now()} - Querying celegans dataset withthe following features : {keywords}.')
     queries = queries_from_features(keywords)
     query_db(queries, sep)
     return 'query_result.txt'
@@ -89,7 +90,7 @@ def load_by_query(query):
 def query_db(queries, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
-    sparql = SPARQLWrapper("http://cedre-16a.med.univ-rennes1.fr:3030/WS286_06march2023_RDF/sparql")
+    sparql = SPARQLWrapper("http://cedre-14a.med.univ-rennes1.fr:3030/WS286_2023march08_RDF/sparql")
     warnings.filterwarnings("ignore")
     for query in tqdm(queries, desc="Querying SPARQL endpoint..."):
 
@@ -110,7 +111,7 @@ def query_db(queries, sep):
                     
         except:
             raise Exception("Check that the query output is a triple like ?s ?p ?o. Reminder: You must use a CONSTRUCT query")
-    print(dt.now + " Query executed !")
+    print(f'{dt.now()} - Query executed !')
 
 def queries_from_features(keywords):
     features = {       
