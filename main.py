@@ -2,6 +2,11 @@ import argparse
 from utils import *
 import os
 import sys
+import pandas as pd
+import yaml
+import wandb
+
+import classifier
 
 def main():
     '''Parse the command line arguments'''
@@ -46,7 +51,7 @@ def main():
     
     args = parser.parse_args()
     
-    # Change directory
+    # Change directory to the current file path
     current_file_path = os.path.realpath(__file__)
     current_dir = os.path.dirname(current_file_path)
     os.chdir(current_dir)
@@ -60,6 +65,7 @@ def main():
     sys.stdout = log_file
     sys.stderr = log_file
 
+    # Gather data, either from local file or SPAQL endpoint
     if args.query:
         dataset = load_by_query(args.query)
 
@@ -67,33 +73,57 @@ def main():
         match args.dataset:
             case "celegans":
                 dataset = load_celegans(args.keywords, sep=' ')
-            case "celedebug":
-                dataset = "celedebug.txt"
-                #dataset = load_biokg(args.keywords)
-            case "toy-example":
+            case "local_celegans": # Celegans dataset from local file (to avoid sparql interaction)
+                dataset = "local_celegans.txt"
+            case "toy-example": # Debug dataset
                 dataset = "toy-example.txt"
             case _:
                 raise Exception("Dataset not supported.")
             
     elif args.dataset and args.method == "PhenoGeneRanker":
         dataset = load_pgr(args.keywords, sep='\t')
-   
     else:
         raise Exception("No dataset or query provided.")
 
-    train_model(args.method, dataset, timestart, args)
-    if dataset != 'toy-example.txt':
-        os.remove(dataset) 
+    # Load config and init wandb tracking
+    if args.default_config:
+        with open(f'methods/TorchKGE/config/{args.method}.yaml', 'r') as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+    else:
+        config = vars(args)
+
+    wandb.config = {
+    "architecture": config['method'],
+    "learning_rate": config['lr'],
+    "epochs": config['n_epochs'],
+    "batch_size": config['batch_size'],
+    "embedding_dim": config['ent_emb_dim'],
+    "loss": config['loss_fn'],
+    "dataset": config['dataset'],
+    "split_ratio": config['split_ratio'],
+    "margin": config['margin'],
+    "dissimilarity_type": config['dissimilarity_type'],
+    "rel_emb_dim": config['rel_emb_dim'],
+    "n_filters": config['n_filters'],
+    "scalar_share": config['scalar_share'],
+    }
+    wandb.login()
+    wandb.init(project="cigap", config=config)
+
+    # Train embedding model with the selected method
+    train_model(args.method, dataset, timestart, config)
+    if dataset not in ['toy-example.txt', 'local_celegans.txt']:
+        os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
     # Close log file
     log_file.close()
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
     
-def train_model(method, dataset, timestart, args):
+def train_model(method, timestart, config, dataset):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
         import methods.TorchKGE.kge as kge
-        emb_model = kge.train(method, dataset, timestart, args)
+        emb_model, kg_train, kg_val = kge.train(method, timestart, dataset, config)
     elif method == "MultiVERSE":
         pass
     elif method == "PhenoGeneRanker":
@@ -128,6 +158,8 @@ def train_model(method, dataset, timestart, args):
         gen_vocab(dataset)
         match_id_names(dataset)
         split_dataset(dataset)
+    train_classifier(emb_model, kg_train, kg_val)
+
 
 
 if __name__ == "__main__":
