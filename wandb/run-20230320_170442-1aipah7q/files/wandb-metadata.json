@@ -1,0 +1,245 @@
+{
+    "os": "Linux-4.19.0-23-amd64-x86_64-with-glibc2.28",
+    "python": "3.10.9",
+    "heartbeatAt": "2023-03-20T16:04:43.455611",
+    "startedAt": "2023-03-20T16:04:42.858208",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--keywords",
+        "gene",
+        "phenotype",
+        "interaction",
+        "disease_plus_ortho",
+        "disease-ontology",
+        "phenotype-ontology",
+        "expression_pattern",
+        "--method",
+        "TransE",
+        "--dataset",
+        "celedebug",
+        "--n_epochs",
+        "20",
+        "--batch_size",
+        "128",
+        "--lr",
+        "0.0001",
+        "--normalize_parameters",
+        "--loss_fn",
+        "margin",
+        "--ent_emb_dim",
+        "50",
+        "--split_ratio",
+        "0.8",
+        "--dissimilarity_type",
+        "L1",
+        "--margin",
+        "1",
+        "--n_filters",
+        "500"
+    ],
+    "state": "running",
+    "program": "/home/antoine/gene_pheno_pred/main.py",
+    "codePath": "main.py",
+    "git": {
+        "remote": "https://github.com/atoffano/gene_pheno_pred.git",
+        "commit": "faade9c044150d6e657078247cacd4506ed31d12"
+    },
+    "email": null,
+    "root": "/home/antoine/gene_pheno_pred",
+    "host": "cedre-22a",
+    "username": "antoine",
+    "executable": "/home/antoine/miniconda3/envs/aled/bin/python",
+    "cpu_count": 16,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 2099.961125,
+        "min": 1200.0,
+        "max": 2100.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2099.978,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2100.025,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2100.04,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2100.076,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.961,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.94,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.972,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.948,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.987,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.961,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.956,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.945,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.949,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.968,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.953,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.97,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.963,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.953,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.959,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.952,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.944,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.945,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.946,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.945,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.945,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.961,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.954,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.944,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.943,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.958,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.951,
+            "min": 1200.0,
+            "max": 2100.0
+        },
+        {
+            "current": 2099.957,
+            "min": 1200.0,
+            "max": 2100.0
+        }
+    ],
+    "disk": {
+        "total": 219.8778953552246,
+        "used": 187.06296157836914
+    },
+    "gpu": "Tesla P100-PCIE-16GB",
+    "gpu_count": 3,
+    "gpu_devices": [
+        {
+            "name": "Tesla P100-PCIE-16GB",
+            "memory_total": 17071734784
+        },
+        {
+            "name": "Quadro K1200",
+            "memory_total": 4240244736
+        },
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11721506816
+        }
+    ],
+    "memory": {
+        "total": 125.67764282226562
+    }
+}

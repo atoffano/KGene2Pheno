@@ -2,6 +2,7 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime as dt
 import yaml
+import numpy as np
 
 import wandb
 
@@ -153,40 +154,123 @@ def train(method, dataset, timestart, args):
     evaluate_model(model, kg_val)
 
 
+def train_classifier(model, dataloader):
+        # Move everything to CUDA if available
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+        model.to(device)
+    else:
+        device = torch.device('cpu')
 
-    # input_dim=50     # how many Variables are in the dataset
-    # hidden_dim = 25 # hidden layers
-    # output_dim=11    # number of classes
+    model.to(device)
+    learning_rate=0.1
+    optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    n_epochs=1
+    input_dim=100     # how many Variables are in the dataset
+    hidden_dim = 50 # hidden layers
+    output_dim=11    # number of classes
 
-    # classifier=Net(input_dim,hidden_dim,output_dim)
-    # criterion=nn.CrossEntropyLoss()
+    dataloader = DataLoader(kg_train, batch_size=512, use_cuda='None')
+    classifier=MultiClassifier(input_dim,hidden_dim,output_dim).to(device)
+    criterion=nn.CrossEntropyLoss()
+    sampler = BernoulliNegativeSampler(kg_train)
 
+    # Train the model
+    iterator = tqdm(range(n_epochs), unit='epoch')
+    for epoch in iterator:
+        running_pos_loss, running_neg_loss = 0.0, 0.0
+        for batch in tqdm(dataloader):
 
-    # learning_rate=0.1
-    # optimizer=torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # n_epochs=10
+            # Generate positive samples
+            h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
+            # Generate negative samples by corrupting the tail
+            n_h, n_t = sampler.corrupt_batch(h_idx, t_idx, r_idx) 
+            
+            # Get entity embeddings for the batch
+            h = model.ent_emb(h_idx.to(device))
+            t = model.ent_emb(t_idx.to(device))
+            n_t = model.ent_emb(n_t.to(device))
+            n_h = model.ent_emb(n_h.to(device))
 
-    # # Train the model
-    # iterator = tqdm(range(n_epochs), unit='epoch')
-    # for epoch in iterator:
-    #     for i, batch in enumerate(dataloader):
-    #         running_loss = 0.0
-    #         h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-    #         h = model.ent_emb(h_idx)
-    #         r = model.rel_emb(r_idx)
-    #         # n_h, n_t = sampler.corrupt_batch(h, t, r) # generate negative samples
+            # Create a ground truth one-hot tensor for each sample like [x, x, x, x, ..., x, 0.0]
+            ground_truth = np.zeros((len(h_idx), 11)) # Couille là
+            for i, r_type in enumerate(r_idx):
+                label_vec = np.zeros(11)
+                label_vec[r_type] = 1.0
+                ground_truth[i] = label_vec
+            ground_truth = torch.tensor(ground_truth, dtype=torch.float32).to(device)
+            
+            # Create a ground truth one-hot tensor for each corrupted sample (negative samples) like [0.0, 0.0, 0.0, 0.0 ... 0.0, 1.0]
+            neg_ground_truth = np.zeros((len(h_idx), 11))
+            for i in range(len(neg_ground_truth)):
+                vec = np.zeros(11)
+                vec[10] = 1.0 # Last index denotes the absence of a link in the graph
+                neg_ground_truth[i] = vec
+            neg_ground_truth = torch.tensor(neg_ground_truth, dtype=torch.float32).to(device)
 
-    #         optimizer.zero_grad()
+            optimizer.zero_grad()
 
-    #         # forward + backward + optimize
-    #         h, r = h.to(device), r.to(device)
-    #         pos, neg = classifier(h, r)
-    #         loss = criterion(pos, neg)
-    #         loss.backward()
-    #         optimizer.step()
-    #         running_loss += loss.item()
-    #     print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}')
-    #     wandb.log({'classif_loss': running_loss / len(dataloader)})
+            # forward + backward + optimize
+            # ..on positive samples
+            pos_x = classifier(h, t)
+            pos_loss = criterion(pos_x, ground_truth)
+            running_pos_loss += pos_loss.item()
+
+            # ..on negative samples
+            neg_x = classifier(n_h, n_t)
+            neg_loss = criterion(neg_x, neg_ground_truth)
+            running_neg_loss += neg_loss.item()
+
+            # Backpropagate
+            loss = pos_loss + neg_loss
+            loss.backward()
+            optimizer.step()
+        print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: {running_pos_loss / len(dataloader)}\nmean positive loss: {running_pos_loss / len(dataloader)}\nmean negative loss: { running_neg_loss / len(dataloader)}')
+        # wandb.log({'classif_loss': running_loss / len(dataloader)})
+    test_classifier(model, classifier)
+
+def test_classifier(model, classifier):
+    # Move everything to CUDA if available
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+        model.to(device)
+    else:
+        device = torch.device('cpu')
+
+    # Dataset loading
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-16 17:02:16.120236_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    kg_val = KnowledgeGraph(df)
+    dataloader = DataLoader(kg_val, batch_size=512, use_cuda='None')
+
+    model.to(device)
+    criterion=nn.CrossEntropyLoss()
+    print(f'{dt.now()} - Running inference of classifier on validation set..')
+
+    with torch.no_grad():
+        running_loss = 0.0
+        for _, batch in enumerate(dataloader):
+            h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
+            h = model.ent_emb(h_idx.to(device))
+            t = model.ent_emb(t_idx.to(device))
+            # n_h, n_t = sampler.corrupt_batch(h, t, r) # generate negative samples
+            
+            # Create a ground truth tensor for the batch
+            ground_truth = np.zeros((len(h_idx), 11))
+            for i, rel_index in enumerate(r_idx):
+                label_vec = np.zeros(11)
+                label_vec[rel_index] = 1.0 # Relation class
+                ground_truth[i] = label_vec
+            ground_truth = torch.tensor(ground_truth, dtype=torch.float32).to(device)
+
+            # forward + backward + optimize
+            x = classifier(h, t)
+            loss = criterion(x, ground_truth)
+            running_loss += loss.item()
+        print(f'{dt.now()} - mean loss: { running_loss / len(dataloader)}')
 
 
 def evaluate_model(model, kg_eval):
@@ -218,20 +302,23 @@ def inference_from_checkpoint(model_path, test_path):
 def get_results(evaluator):
     for k in range(1, 11):
         wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
-    wandb.log({'Mean Rank': int(evaluator.mean_rank()[0])})
+    wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
     wandb.log({'MRR': int(evaluator.mrr()[0])})
 
 
-class Net(nn.Module):
-    def __init__(self,D_in,H,D_out):
-        super(Net,self).__init__()
-        self.linear1=nn.Linear(D_in,H)
-        self.linear2=nn.Linear(H,D_out)
+class MultiClassifier(nn.Module):
+    def __init__(self,emb_dim, hidden_size, nb_classes):
+        super(MultiClassifier, self).__init__()
+        self.linear1=nn.Linear(emb_dim, hidden_size)
+        self.linear2=nn.Linear(hidden_size, nb_classes)
 
         
-    def forward(self,x):
-        x=torch.relu(self.linear1(x))  
-        x=self.linear2(x)
+    def forward(self, h, t):
+        x = torch.cat((h, t), 1)
+        # x = torch.add(h, t)
+        x = self.linear1(x)
+        x = torch.relu(x)
+        x = self.linear2(x)
         return x
 
 if __name__ == '__main__':
@@ -239,4 +326,13 @@ if __name__ == '__main__':
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
     import os
     os.chdir('/home/antoine/gene_pheno_pred')
-    train('TransE', "celedebug.txt", dt.now())
+    # train('TransE', "celedebug.txt", dt.now())
+
+
+    # Dataset loading
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-16 17:02:16.120236_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    kg_train = KnowledgeGraph(df)
+    # Model loading
+    model = ConvKBModel(50, 500, 675845,10)
+    model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-15 13:03:19.327774.pt'))
+    train_classifier(model, kg_train)
