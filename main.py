@@ -43,8 +43,11 @@ def main():
 
     # ANALOGY
     parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')
-
+    
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
+
+    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
+
     parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
     parser.add_argument('--save_data', action='store_true', help='whether to save the data splits')
 
@@ -107,11 +110,12 @@ def main():
     "n_filters": config['n_filters'],
     "scalar_share": config['scalar_share'],
     }
+
     wandb.login()
     wandb.init(project="cigap", config=config)
 
     # Train embedding model with the selected method
-    train_model(args.method, dataset, timestart, config)
+    train_model(args.method, dataset, config, timestart)
     if dataset not in ['toy-example.txt', 'local_celegans.txt']:
         os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
@@ -120,10 +124,10 @@ def main():
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
     
-def train_model(method, timestart, config, dataset):
+def train_model(method, dataset, config, timestart):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
         import methods.TorchKGE.kge as kge
-        emb_model, kg_train, kg_val = kge.train(method, timestart, dataset, config)
+        emb_model, kg_train, kg_val = kge.train(method, dataset, config, timestart)
     elif method == "MultiVERSE":
         pass
     elif method == "PhenoGeneRanker":
@@ -158,9 +162,13 @@ def train_model(method, timestart, config, dataset):
         gen_vocab(dataset)
         match_id_names(dataset)
         split_dataset(dataset)
-    train_classifier(emb_model, kg_train, kg_val)
+
+    if config['train_classifier']:
+        classifier.train_classifier(emb_model, kg_train, kg_val)
 
 
 
 if __name__ == "__main__":
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
     main()

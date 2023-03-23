@@ -1,4 +1,4 @@
-name: kge
+name: main
 channels:
   - defaults
 dependencies:

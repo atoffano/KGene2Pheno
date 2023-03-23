@@ -1,8 +1,6 @@
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime as dt
-import yaml
-
 import wandb
 
 import torch
@@ -19,8 +17,18 @@ from torchkge.sampling import BernoulliNegativeSampler
 from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, DataLoader
 from torchkge.data_structures import KnowledgeGraph
 
-def train(method, timestart, dataset, config):
-    
+def train(method, dataset, config, timestart):
+
+    # Dataset loading and splitting
+    df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
+    kg = KnowledgeGraph(df)
+
+    print(f'{dt.now()} Number of triples: {kg.n_facts}')
+    print(f'{dt.now()} Number of distinct entities: {kg.n_ent}')
+    print(f'{dt.now()} Number of relations: {kg.n_rel}\n')
+
+    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
+
     # Define the emb_model, criterion, optimizer, sampler and dataloader
     match method:
         case "TransE":
@@ -59,16 +67,6 @@ def train(method, timestart, dataset, config):
         case _:
             raise ValueError(f"Loss function {config['loss_fn']} not supported.")
  
-    # Dataset loading and splitting
-    df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
-    kg = KnowledgeGraph(df)
-
-    print(f'{dt.now()} Number of triples: {kg.n_facts}')
-    print(f'{dt.now()} Number of distinct entities: {kg.n_ent}')
-    print(f'{dt.now()} Number of relations: {kg.n_rel}\n')
-
-    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
-
     dataloader = DataLoader(kg_train, batch_size=config['batch_size'], use_cuda='None')
     optimizer = Adam(emb_model.parameters(), lr=config['lr'], weight_decay=1e-5)
     sampler = BernoulliNegativeSampler(kg_train)
@@ -109,6 +107,7 @@ def train(method, timestart, dataset, config):
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
+        
         print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}')
         wandb.log({'loss': running_loss / len(dataloader)})
 

@@ -64,25 +64,26 @@ def classif_forward(emb_model, classifier, batch, sampler, criterion):
 
     # Positive samples
     pos_x = classifier(h, t)
-    pos_loss = criterion(pos_x, ground_truth).item()
+    pos_loss = criterion(pos_x, ground_truth)
 
     # Negative samples
     neg_x = classifier(n_h, n_t)
-    neg_loss = criterion(neg_x, neg_ground_truth).item()
+    neg_loss = criterion(neg_x, neg_ground_truth)
     return  pos_loss, neg_loss
     
 def train_classifier(emb_model, kg_train, kg_val):
-    dataloader = DataLoader(kg_train, batch_size=512['batch_size'], use_cuda='None')
+    dataloader = DataLoader(kg_train, batch_size=512, use_cuda='None')
 
     emb_model.to(device)
     learning_rate=0.1
     optimizer = Adam(emb_model.parameters(), lr=learning_rate, weight_decay=1e-5)
-    n_epochs=1
+    n_epochs=10
     input_dim=100     # how many Variables are in the dataset
     hidden_dim = 50 # hidden layers
     output_dim=11    # number of classes
 
     dataloader = DataLoader(kg_train, batch_size=512, use_cuda='None')
+
     classifier=MultiClassifier(input_dim,hidden_dim,output_dim).to(device)
     criterion=nn.CrossEntropyLoss()
     sampler = BernoulliNegativeSampler(kg_train)
@@ -92,14 +93,15 @@ def train_classifier(emb_model, kg_train, kg_val):
     for epoch in iterator:
         running_pos_loss, running_neg_loss = 0.0, 0.0
         for batch in tqdm(dataloader):
+            optimizer.zero_grad()
             pos_loss, neg_loss = classif_forward(emb_model, classifier, batch, sampler, criterion)
-            running_pos_loss += pos_loss
-            running_neg_loss += neg_loss
+            running_pos_loss += pos_loss.item()
+            running_neg_loss += neg_loss.item()
             loss = pos_loss + neg_loss
             loss.backward()
-            optimizer.zero_grad()
             optimizer.step()
-        print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: {running_pos_loss / len(dataloader)}\nmean positive loss: {running_pos_loss / len(dataloader)}\nmean negative loss: { running_neg_loss / len(dataloader)}')
+
+        print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: {((running_pos_loss + running_neg_loss) / 2) / len(dataloader)}\nmean positive loss: {running_pos_loss / len(dataloader)}\nmean negative loss: { running_neg_loss / len(dataloader)}')
         wandb.log({'Classifier pos_loss': running_pos_loss / len(dataloader), 'Classifier neg_loss': running_neg_loss / len(dataloader), 'Classifier Loss': loss / len(dataloader)})
     
     # Test the classifier
@@ -116,8 +118,8 @@ def test_classifier(emb_model, classifier, kg_val):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             pos_loss, neg_loss = classif_forward(emb_model, classifier, batch, sampler, criterion)
-            running_pos_loss += pos_loss
-            running_neg_loss += neg_loss
+            running_pos_loss += pos_loss.item()
+            running_neg_loss += neg_loss.item()
             loss = pos_loss + neg_loss
     print(f'{dt.now()} - mean loss: {running_pos_loss / len(dataloader)}\nmean positive loss: {running_pos_loss / len(dataloader)}\nmean negative loss: { running_neg_loss / len(dataloader)}')
     wandb.log({'Classifier pos_loss': running_pos_loss / len(dataloader), 'Classifier neg_loss': running_neg_loss / len(dataloader), 'Classifier Loss': loss / len(dataloader)})
@@ -127,18 +129,21 @@ if __name__ == '__main__':
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
     import os
     os.chdir('/home/antoine/gene_pheno_pred')
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
+
     # train('TransE', "celedebug.txt", dt.now())
 
 
     # Dataset loading
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-16 17:02:16.120236_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
     kg_train = KnowledgeGraph(df)
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-16 17:02:16.120236_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
     kg_val = KnowledgeGraph(df)
 
     # Model loading
-    emb_model = ConvKBModel(50, 500, 675845,10)
-    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/ConvKB_2023-03-15 13:03:19.327774.pt'))
+    emb_model = TransEModel(50, 675845,10)
+    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481.pt'))
 
     # Move everything to CUDA if available
     use_cuda = cuda.is_available()
@@ -152,7 +157,7 @@ if __name__ == '__main__':
     # Config
     wandb.config = {
     "learning_rate": 0.1,
-    "epochs": 1,
+    "epochs": 10,
     "batch_size": 512,
     "loss": 'CrossEntropyLoss',
     "input_dim" : 100,
@@ -162,4 +167,4 @@ if __name__ == '__main__':
     wandb.login()
     wandb.init(project="cigap", config=wandb.config)
 
-    train_classifier(emb_model, kg_train)
+    train_classifier(emb_model, kg_train, kg_val)
