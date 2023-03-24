@@ -4,8 +4,8 @@
 
 # No Q system
 export WANDB_API_KEY=4e5748d6c6f3917c78cdc38a516a1bac776faf58
-export CUDA_VISIBLE_DEVICES=2
-methods=("TransE" "TorusE" "RESCAL" "ComplEx" "ConvKB")
+export CUDA_VISIBLE_DEVICES=1
+methods=("TorusE" "RESCAL" "ComplEx" "ConvKB")
 for split_ratio in 0.8 0.9 0.95; do
     for method in "${methods[@]}"; do
         for epoch in 20 50 100; do

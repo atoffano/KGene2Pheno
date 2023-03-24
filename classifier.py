@@ -1,7 +1,6 @@
 
 from tqdm import tqdm
 from datetime import datetime as dt
-import yaml
 import numpy as np
 
 import wandb
@@ -18,6 +17,7 @@ from torchkge.utils import DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 
+from ignite.metrics import ConfusionMatrix
 class MultiClassifier(nn.Module):
     def __init__(self,emb_dim, hidden_size, nb_classes):
         super(MultiClassifier, self).__init__()
@@ -34,7 +34,7 @@ class MultiClassifier(nn.Module):
         return x
 
 
-def classif_forward(emb_model, classifier, batch, sampler, criterion):
+def classif_forward(emb_model, classifier, batch, sampler):
     # Generate positive samples
     h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
     # Generate negative samples by corrupting the tail
@@ -64,12 +64,10 @@ def classif_forward(emb_model, classifier, batch, sampler, criterion):
 
     # Positive samples
     pos_x = classifier(h, t)
-    pos_loss = criterion(pos_x, ground_truth)
 
     # Negative samples
     neg_x = classifier(n_h, n_t)
-    neg_loss = criterion(neg_x, neg_ground_truth)
-    return  pos_loss, neg_loss
+    return  pos_x , neg_x, ground_truth, neg_ground_truth
     
 def train_classifier(emb_model, kg_train, kg_val):
     dataloader = DataLoader(kg_train, batch_size=512, use_cuda='None')
@@ -77,7 +75,7 @@ def train_classifier(emb_model, kg_train, kg_val):
     emb_model.to(device)
     learning_rate=0.1
     optimizer = Adam(emb_model.parameters(), lr=learning_rate, weight_decay=1e-5)
-    n_epochs=10
+    n_epochs=1
     input_dim=100     # how many Variables are in the dataset
     hidden_dim = 50 # hidden layers
     output_dim=11    # number of classes
@@ -94,7 +92,9 @@ def train_classifier(emb_model, kg_train, kg_val):
         running_pos_loss, running_neg_loss = 0.0, 0.0
         for batch in tqdm(dataloader):
             optimizer.zero_grad()
-            pos_loss, neg_loss = classif_forward(emb_model, classifier, batch, sampler, criterion)
+            pos_x , neg_x, ground_truth, neg_ground_truth = classif_forward(emb_model, classifier, batch, sampler)
+            pos_loss = criterion(pos_x, ground_truth)
+            neg_loss = criterion(neg_x, neg_ground_truth)
             running_pos_loss += pos_loss.item()
             running_neg_loss += neg_loss.item()
             loss = pos_loss + neg_loss
@@ -113,14 +113,30 @@ def test_classifier(emb_model, classifier, kg_val):
     dataloader = DataLoader(kg_val, batch_size=512, use_cuda='None')
     criterion=nn.CrossEntropyLoss()
     sampler = BernoulliNegativeSampler(kg_val)
+
     running_pos_loss, running_neg_loss = 0.0, 0.0
+    confusion_matrix = ConfusionMatrix(num_classes=11)
 
     with torch.no_grad():
+        all_pred, all_truth = torch.tensor([]), torch.tensor([])  # create an empty tensor to store all predictions
         for batch in tqdm(dataloader):
-            pos_loss, neg_loss = classif_forward(emb_model, classifier, batch, sampler, criterion)
+            pos_x , neg_x, ground_truth, neg_ground_truth = classif_forward(emb_model, classifier, batch, sampler)
+            
+            pos_loss = criterion(pos_x, ground_truth)
+            neg_loss = criterion(neg_x, neg_ground_truth)
             running_pos_loss += pos_loss.item()
             running_neg_loss += neg_loss.item()
             loss = pos_loss + neg_loss
+
+            # append predictions and ground truths to respective tensors
+            all_pred = torch.cat((pos_x, neg_x), dim=0)
+            all_truth = torch.cat((ground_truth, neg_ground_truth), dim=0)
+            all_truth = torch.tensor(torch.argmax(all_truth, dim=1)) # convert one-hot to class index
+            # update confusion matrix with predictions and ground truths for this batch
+            confusion_matrix.update((all_pred, all_truth))
+
+    print(confusion_matrix.compute())
+
     print(f'{dt.now()} - mean loss: {running_pos_loss / len(dataloader)}\nmean positive loss: {running_pos_loss / len(dataloader)}\nmean negative loss: { running_neg_loss / len(dataloader)}')
     wandb.log({'Classifier pos_loss': running_pos_loss / len(dataloader), 'Classifier neg_loss': running_neg_loss / len(dataloader), 'Classifier Loss': loss / len(dataloader)})
 
@@ -129,7 +145,7 @@ if __name__ == '__main__':
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
     import os
     os.chdir('/home/antoine/gene_pheno_pred')
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
 
     # train('TransE', "celedebug.txt", dt.now())
