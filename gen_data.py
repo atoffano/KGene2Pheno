@@ -44,6 +44,7 @@ def generate_emb(emb_model, batch, sampler):
     return pos_x, neg_x, ground_truth, neg_ground_truth
 
 def generate_data(emb_model, kg_train, kg_val, kg_test):
+    timestamp = dt.now().strftime("%Y-%m-%d_%H-%M-%S")
     for dataset, name in zip([kg_train, kg_val, kg_test], ['train', 'val', 'test']):
         dataloader = DataLoader(dataset, batch_size=512, use_cuda='None')
         sampler = BernoulliNegativeSampler(dataset)
@@ -60,13 +61,17 @@ def generate_data(emb_model, kg_train, kg_val, kg_test):
                 all_truth = torch.cat((all_truth, truth), dim=0)
 
         rel2ix = {v: k for k, v in dataset.rel2ix.items()} # Mapping of entity indices to entity names
+        rel2ix[11] = 'no_link_known'
         all_truth = all_truth.cpu().numpy()
         all_truth_dict = np.vectorize(rel2ix.get)(all_truth)
         
         # make all pred as a df with 50 features and add all_truth as a qualitative column
         df = pd.DataFrame(all_pred.cpu().numpy())
         df['ground_truth'] = all_truth_dict
-        df.to_csv(f"/home/antoine/gene_pheno_pred/{str(dt.now()).replace(' ', '_')}_{name}.csv", index=False)
+
+        #shuffle df rows randomly
+        df = df.sample(frac=1).reset_index(drop=True)
+        df.to_csv(f"/home/antoine/gene_pheno_pred/{timestamp}_{name}.csv", index=False)
 
 if __name__ == '__main__':
     # # Loads a model and the relevant test data, and run on a test set
@@ -75,9 +80,6 @@ if __name__ == '__main__':
     os.chdir('/home/antoine/gene_pheno_pred')
     os.environ["CUDA_VISIBLE_DEVICES"]="1"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
-
-    # train('TransE', "celedebug.txt", dt.now())
-
 
     # Dataset loading
     df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
