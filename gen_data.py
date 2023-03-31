@@ -82,15 +82,15 @@ if __name__ == '__main__':
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
 
     # Dataset loading
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TorusE_2023-03-31 10:18:16.690218_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
     kg_train = KnowledgeGraph(df)
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TorusE_2023-03-31 10:18:16.690218_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
     kg_val = KnowledgeGraph(df)
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481_kg_test.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorchKGE/TorusE_2023-03-31 10:18:16.690218_kg_test.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
     kg_test = KnowledgeGraph(df)
     # Model loading
-    emb_model = TransEModel(50, 675845,10)
-    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481.pt'))
+    emb_model = TorusEModel(50, 675845,10, dissimilarity_type='torus_L1')
+    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TorusE_2023-03-31 10:18:16.690218.pt'))
 
     # Move everything to CUDA if available
     use_cuda = cuda.is_available()
