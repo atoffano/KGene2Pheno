@@ -39,5 +39,9 @@ Thumbs.db
 ######################
 query_result.txt
 celedebug.txt
-models
+local_celegans.txt
+infodump.txt
+*.csv
+models/*
 wandb
+__pycache__
