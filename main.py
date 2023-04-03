@@ -112,7 +112,7 @@ def main():
     }
 
     wandb.login()
-    wandb.init(project="cigap", config=config)
+    wandb.init(project="cigap-emb", config=config)
 
     # Train embedding model with the selected method
     train_model(args.method, dataset, config, timestart)
@@ -169,6 +169,6 @@ def train_model(method, dataset, config, timestart):
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
     main()
