@@ -2,7 +2,6 @@
 
 # No Q system
 export WANDB_API_KEY=4e5748d6c6f3917c78cdc38a516a1bac776faf58
-export CUDA_VISIBLE_DEVICES=1
 # methods=("TorusE" "RESCAL" "ComplEx" "ConvKB")
 # for method in "${methods[@]}"; do
 #     for epoch in 20 50 100; do
