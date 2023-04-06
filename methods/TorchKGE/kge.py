@@ -52,7 +52,17 @@ def train(method, dataset, config, timestart):
         case "ANALOGY":
             emb_model = AnalogyModel(config['ent_emb_dim'], kg_train.n_ent, kg_train.n_rel, config['scalar_share'])
         case "ConvKB":
-            emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
+            if config['init_transe']:
+                    print('ok')
+                    init_model = TransEModel(emb_dim=50, n_entities=675845, n_relations=10, dissimilarity_type='L1')
+                    init_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481.pt'))
+                    ent_emb, rel_emb = init_model.get_embeddings()
+                    emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
+                    print(emb_model.ent_emb.weight.data[0])
+                    emb_model.ent_emb.weight.data = ent_emb
+                    print(emb_model.rel_emb.weight.data[0])
+                    emb_model.rel_emb.weight.data = rel_emb
+
         case _:
             raise ValueError(f"Method {method} not supported.")
     wandb.watch(emb_model, log="all")

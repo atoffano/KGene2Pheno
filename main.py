@@ -39,7 +39,8 @@ def main():
     parser.add_argument('--rel_emb_dim', required=False, default=50, type=int, help='Size of entity embeddings')
 
     # ConvKB
-    parser.add_argument('--n_filters', required=False, default=500, type=int, help='Number of filters (ConvKB)')
+    parser.add_argument('--n_filters', required=False, default=100, type=int, help='Number of filters (ConvKB)')
+    parser.add_argument('--init_transe', required=False, default=True, help='whether to init convKB with transe embeddings')
 
     # ANALOGY
     parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')
@@ -127,7 +128,7 @@ def main():
 def train_model(method, dataset, config, timestart):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
         import methods.TorchKGE.kge as kge
-        emb_model, kg_train, kg_val = kge.train(method, dataset, config, timestart)
+        emb_model, kg_train, kg_val, kg_test= kge.train(method, dataset, config, timestart)
     elif method == "MultiVERSE":
         pass
     elif method == "PhenoGeneRanker":
