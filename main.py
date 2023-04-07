@@ -170,6 +170,6 @@ def train_model(method, dataset, config, timestart):
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="0"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
     main()
