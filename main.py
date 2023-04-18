@@ -160,9 +160,7 @@ def train_model(method, dataset, config, timestart):
     elif method == "GraphLP":
         pass
     elif method == "Relphormer":
-        gen_vocab(dataset)
-        match_id_names(dataset)
-        split_dataset(dataset)
+        pass
 
     if config['train_classifier']:
         classifier.train_classifier(emb_model, kg_train, kg_val)

@@ -3,6 +3,8 @@ from tqdm import tqdm
 import warnings
 import os
 from datetime import datetime as dt
+import pandas as pd
+
 
 def load_celegans(keywords, sep):
     print(f'{dt.now()} - Querying celegans dataset withthe following features : {keywords}.')
@@ -81,11 +83,21 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
             # write the lines to the train and test files
             out_test_file.writelines(lines[:num_test_lines])
             out_dev_file.writelines(lines[num_dev_lines:])
-            
+
+def load_dataset(dev_set=True):
+    df_train = pd.read_csv('train.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    df_test = pd.read_csv('test.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+
+    if dev_set:
+        df_val = pd.read_csv('dev.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    else:
+        df_val = None
+
+    return df_train, df_test, df_val
+
 def load_by_query(query):
     query = add_prefixes(query)
     query_db([query])
-    
 
 def query_db(queries, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""

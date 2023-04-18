@@ -17,7 +17,7 @@ from torchkge.sampling import BernoulliNegativeSampler
 from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, DataLoader
 from torchkge.data_structures import KnowledgeGraph
 
-from utils import split_dataset
+from utils import split_dataset, load_dataset
 
 def train(method, dataset, config, timestart):
 
@@ -30,10 +30,9 @@ def train(method, dataset, config, timestart):
     print(f'{dt.now()} Number of relations: {kg.n_rel}\n')
 
     split_dataset(kg, config['split_ratio'], validation=True)
-    df_train = pd.read_csv('train.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
-    df_test = pd.read_csv('test.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
-    df_val = pd.read_csv('dev.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    df_train, df_val, df_test = load_dataset(dev_set=True)
     kg_train, kg_val, kg_test = KnowledgeGraph(df_train), KnowledgeGraph(df_val), KnowledgeGraph(df_test)
+
 
     # Define the emb_model, criterion, optimizer, sampler and dataloader
     match method:
@@ -141,7 +140,7 @@ def train(method, dataset, config, timestart):
 def evaluate_emb_model(emb_model, kg_eval):
     print(f'{dt.now()} - Evaluating..')
     evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
-    evaluator.evaluate(b_size=4, verbose=True)
+    evaluator.evaluate(b_size=64, verbose=True)
 
     # Log results to logfile
     print(f'{dt.now()} - Results:')
@@ -150,6 +149,12 @@ def evaluate_emb_model(emb_model, kg_eval):
     # Log results to wandb
     get_results(evaluator)
 
+
+def get_results(evaluator):
+    for k in range(1, 11):
+        wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
+    wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
+    wandb.log({'MRR': int(evaluator.mrr()[0])})
 
 def inference_from_checkpoint(emb_model_path, test_path):
     use_cuda = cuda.is_available()
@@ -163,13 +168,7 @@ def inference_from_checkpoint(emb_model_path, test_path):
     emb_model.to(device)
     kg_test = KnowledgeGraph(pd.read_csv(test_path))
     evaluate_emb_model(emb_model, kg_test)
-
-def get_results(evaluator):
-    for k in range(1, 11):
-        wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
-    wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
-    wandb.log({'MRR': int(evaluator.mrr()[0])})
-
+    
 if __name__ == '__main__':
     # # Loads a model and the relevant test data, and run on a test set
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
