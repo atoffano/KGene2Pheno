@@ -41,7 +41,7 @@ def load_pgr(keywords, sep):
             f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
     return 'input.txt'
 
-def split_dataset(dataset, split_ratio=0.8, dev_set=True):
+def split_dataset(dataset, split_ratio=0.8, validation=True):
     """Takes in a .tsv file of triples and splits it into a train, dev and test set."""
     import random
 
@@ -65,7 +65,7 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
         out_train_file.writelines(lines[:num_train_lines])
         out_test_file.writelines(lines[num_train_lines:])
     
-    if dev_set:
+    if validation:
         # set the paths to the output train and test TSV files
         dev_file = "dev.txt"
 
@@ -84,16 +84,16 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
             out_test_file.writelines(lines[:num_test_lines])
             out_dev_file.writelines(lines[num_dev_lines:])
 
-def load_dataset(dev_set=True):
+def load_dataset(validation=True):
     df_train = pd.read_csv('train.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
     df_test = pd.read_csv('test.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
 
-    if dev_set:
+    if validation:
         df_val = pd.read_csv('dev.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
     else:
         df_val = None
 
-    return df_train, df_test, df_val
+    return df_train, df_val, df_test
 
 def load_by_query(query):
     query = add_prefixes(query)

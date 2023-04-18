@@ -22,17 +22,15 @@ from utils import split_dataset, load_dataset
 def train(method, dataset, config, timestart):
 
     # Dataset loading and splitting
-    df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
-    kg = KnowledgeGraph(df)
-
-    print(f'{dt.now()} Number of triples: {kg.n_facts}')
-    print(f'{dt.now()} Number of distinct entities: {kg.n_ent}')
-    print(f'{dt.now()} Number of relations: {kg.n_rel}\n')
-
-    split_dataset(kg, config['split_ratio'], validation=True)
-    df_train, df_val, df_test = load_dataset(dev_set=True)
+    split_dataset(dataset, config['split_ratio'], validation=True)
+    df_train, df_val, df_test = load_dataset(validation=True)
     kg_train, kg_val, kg_test = KnowledgeGraph(df_train), KnowledgeGraph(df_val), KnowledgeGraph(df_test)
 
+    # Print number of entities and relations in each set:
+    for kg in [kg_train, kg_val, kg_test]:
+        print(f'\n Number of entities: {kg.n_ent}')
+        print(f'Number of relations: {kg.n_rel}')
+        print(f'Number of triples: {kg.n_facts}')
 
     # Define the emb_model, criterion, optimizer, sampler and dataloader
     match method:
@@ -154,7 +152,7 @@ def get_results(evaluator):
     for k in range(1, 11):
         wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
     wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
-    wandb.log({'MRR': int(evaluator.mrr()[0])})
+    wandb.log({'MRR': evaluator.mrr()[0]})
 
 def inference_from_checkpoint(emb_model_path, test_path):
     use_cuda = cuda.is_available()
@@ -168,7 +166,7 @@ def inference_from_checkpoint(emb_model_path, test_path):
     emb_model.to(device)
     kg_test = KnowledgeGraph(pd.read_csv(test_path))
     evaluate_emb_model(emb_model, kg_test)
-    
+
 if __name__ == '__main__':
     # # Loads a model and the relevant test data, and run on a test set
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
