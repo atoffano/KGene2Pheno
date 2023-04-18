@@ -17,6 +17,8 @@ from torchkge.sampling import BernoulliNegativeSampler
 from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, DataLoader
 from torchkge.data_structures import KnowledgeGraph
 
+from utils import split_dataset
+
 def train(method, dataset, config, timestart):
 
     # Dataset loading and splitting
@@ -27,7 +29,11 @@ def train(method, dataset, config, timestart):
     print(f'{dt.now()} Number of distinct entities: {kg.n_ent}')
     print(f'{dt.now()} Number of relations: {kg.n_rel}\n')
 
-    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
+    split_dataset(kg, config['split_ratio'], validation=True)
+    df_train = pd.read_csv('train.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    df_test = pd.read_csv('test.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    df_val = pd.read_csv('dev.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+    kg_train, kg_val, kg_test = KnowledgeGraph(df_train), KnowledgeGraph(df_val), KnowledgeGraph(df_test)
 
     # Define the emb_model, criterion, optimizer, sampler and dataloader
     match method:
@@ -53,14 +59,11 @@ def train(method, dataset, config, timestart):
             emb_model = AnalogyModel(config['ent_emb_dim'], kg_train.n_ent, kg_train.n_rel, config['scalar_share'])
         case "ConvKB":
             if config['init_transe']:
-                    print('ok')
                     init_model = TransEModel(emb_dim=50, n_entities=675845, n_relations=10, dissimilarity_type='L1')
                     init_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481.pt'))
                     ent_emb, rel_emb = init_model.get_embeddings()
                     emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
-                    print(emb_model.ent_emb.weight.data[0])
                     emb_model.ent_emb.weight.data = ent_emb
-                    print(emb_model.rel_emb.weight.data[0])
                     emb_model.rel_emb.weight.data = rel_emb
 
         case _:

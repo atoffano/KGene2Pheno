@@ -44,8 +44,8 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
     import random
 
     # set the paths to the output train and test TSV files
-    train_file = "train.tsv"
-    test_file = "test.tsv"
+    train_file = "train.txt"
+    test_file = "test.txt"
 
     # open the input and output files
     with open(dataset, "r") as in_file, open(train_file, "w") as out_train_file, open(test_file, "w") as out_test_file:
@@ -65,23 +65,23 @@ def split_dataset(dataset, split_ratio=0.8, dev_set=True):
     
     if dev_set:
         # set the paths to the output train and test TSV files
-        dev_file = "dev.tsv"
+        dev_file = "dev.txt"
 
         # open the input and output files
-        with open(train_file, "r") as in_file:
+        with open(test_file, "r") as in_file:
             # read the lines from the input file
             lines = in_file.readlines()
-        os.remove(train_file)
+        os.remove(test_file)
         
-        with open(train_file, "r") as in_file, open(dev_file, "w") as out_dev_file:
+        with open(test_file, "w") as out_test_file, open(dev_file, "w") as out_dev_file:
             # calculate the number of lines for the train and test files
-            num_dev_lines = int(len(lines) * split_ratio)
-            num_train_lines = len(lines) - num_dev_lines
+            num_dev_lines = len(lines) // 2
+            num_test_lines = len(lines) - num_dev_lines
 
             # write the lines to the train and test files
-            out_train_file.writelines(lines[:num_train_lines])
-            out_dev_file.writelines(lines[num_train_lines:])
-
+            out_test_file.writelines(lines[:num_test_lines])
+            out_dev_file.writelines(lines[num_dev_lines:])
+            
 def load_by_query(query):
     query = add_prefixes(query)
     query_db([query])
