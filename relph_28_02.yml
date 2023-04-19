@@ -1,4 +1,3 @@
-name: relph
 channels:
   - nvidia
   - defaults
