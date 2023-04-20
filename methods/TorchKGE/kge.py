@@ -28,7 +28,8 @@ def train(method, dataset, config, timestart):
 
     # Print number of entities and relations in each set:
     for kg in [kg_train, kg_val, kg_test]:
-        print(f'\n Number of entities: {kg.n_ent}')
+        print(f'\n{kg}')
+        print(f'Number of entities: {kg.n_ent}')
         print(f'Number of relations: {kg.n_rel}')
         print(f'Number of triples: {kg.n_facts}')
 
@@ -81,10 +82,6 @@ def train(method, dataset, config, timestart):
     optimizer = Adam(emb_model.parameters(), lr=config['lr'], weight_decay=1e-5)
     sampler = BernoulliNegativeSampler(kg_train)
 
-    print(f'{dt.now()} Size of training set:\n\t{len(kg_train)} triples\n\t{kg_train.n_ent} entitites\n\t{kg_train.n_rel} relations')
-    print(f'{dt.now()} Size of validation set\n\t{len(kg_train)} triples\n\t{kg_val.n_ent} entitites\n\t{kg_val.n_rel} relations')
-    print(f'{dt.now()} Size of test set\n\t{len(kg_test)} triples\n\t{kg_test.n_ent} entitites\n\t{kg_test.n_rel} relations')
-    
     # Log parameters
     print(f'\n{dt.now()} - PARAMETERS')
     for i in config.items():
