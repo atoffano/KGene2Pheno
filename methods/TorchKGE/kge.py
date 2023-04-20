@@ -17,14 +17,13 @@ from torchkge.sampling import BernoulliNegativeSampler
 from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, DataLoader
 from torchkge.data_structures import KnowledgeGraph
 
-from utils import split_dataset, load_dataset
 
 def train(method, dataset, config, timestart):
 
     # Dataset loading and splitting
-    split_dataset(dataset, config['split_ratio'], validation=True)
-    df_train, df_val, df_test = load_dataset(validation=True)
-    kg_train, kg_val, kg_test = KnowledgeGraph(df_train), KnowledgeGraph(df_val), KnowledgeGraph(df_test)
+    df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
+    kg = KnowledgeGraph(df)
+    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
 
     # Print number of entities and relations in each set:
     for kg in [kg_train, kg_val, kg_test]:
