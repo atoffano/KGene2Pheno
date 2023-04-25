@@ -350,3 +350,5 @@ if __name__ == "__main__":
      'disease-ontology', 'phenotype-ontology', 'expression_pattern',
       'lifestage-ontology', 'go-ontology', 'go-annotation']
     load_celegans(keywords, sep=' ')
+    
+    print("All queries executed, results saved in query_result.txt")
