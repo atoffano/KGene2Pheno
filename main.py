@@ -116,10 +116,20 @@ def main():
     wandb.init(project="cigap-emb", config=config)
 
     # Train embedding model with the selected method
-    train_model(args.method, dataset, config, timestart)
-    if dataset not in ['toy-example.txt', 'local_celegans.txt']:
-        os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
+    if config['method']:
+        train_model(args.method, dataset, config, timestart)
+        if dataset not in ['toy-example.txt', 'local_celegans.txt']:
+            os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
+    if config['classifier']:
+        classifier.train_classifier(emb_model, kg_train, kg_val, kg_test)
+
+    if config['get_embeddings']:
+        get_embeddings(emb_model, dataset, config)
+    
+    if config['get_scores']:
+        get_scores(emb_model, dataset, config)
+        
     # Close log file
     log_file.close()
     sys.stdout = sys.__stdout__
@@ -127,8 +137,8 @@ def main():
     
 def train_model(method, dataset, config, timestart):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        import methods.TorchKGE.kge as kge
-        emb_model, kg_train, kg_val, kg_test= kge.train(method, dataset, config, timestart)
+        import antoine.gene_pheno_pred.methods.TorchKGE.train as train
+        emb_model, kg_train, kg_val, kg_test= train.train(method, dataset, config, timestart)
     elif method == "MultiVERSE":
         pass
     elif method == "PhenoGeneRanker":
@@ -161,9 +171,11 @@ def train_model(method, dataset, config, timestart):
         pass
     elif method == "Relphormer":
         pass
+    else:
+        raise Exception("Method not supported. Check spelling ?")
 
-    if config['train_classifier']:
-        classifier.train_classifier(emb_model, kg_train, kg_val)
+    return emb_model, kg_train, kg_val, kg_test
+
 
 
 

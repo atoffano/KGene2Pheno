@@ -73,7 +73,7 @@ def query_db(queries, sep):
 
 def queries_from_features(keywords):
     features = {       
-        "gene" : 
+        "gene" : # This include not only genes but also their products, ie proteins, miRNAs, etc.
             """
             CONSTRUCT {
                 ?geneid rdf:type ?type .
@@ -96,7 +96,7 @@ def queries_from_features(keywords):
             }
             """,
 
-        "phenotype" :
+        "phenotype" : # Phenotypes associated to gene and gene products
            """
             CONSTRUCT {
                 ?wbpheno nt:001 ?geneid .
@@ -111,7 +111,7 @@ def queries_from_features(keywords):
             }
             """,
 
-        "interaction" :
+        "interaction" : # Denotes a physical interaction between genes and gene products.
            """
             CONSTRUCT {
                 ?wbinter nt:001 ?geneid1 .
@@ -127,7 +127,7 @@ def queries_from_features(keywords):
             }
             """,
 
-        "disease" :
+        "disease" : # diseases related to celegans genes and gene products
            """
             CONSTRUCT {    
                ?wbdisease nt:001 ?geneid .
@@ -140,7 +140,7 @@ def queries_from_features(keywords):
             }
             """,
 
-          "disease_plus_ortho" :
+          "disease_plus_ortho" : # orthologous diseases (eg. human) related to celegans genes and gene products
            """
             CONSTRUCT {    
                ?wbdisease nt:001 ?geneid .
@@ -152,7 +152,7 @@ def queries_from_features(keywords):
             }
             """,
 
-        "expression_value" :
+        "expression_value" : # /!\ Gene expression values. Very large amount of data, quite likely to be noise /!\
            """
             CONSTRUCT {
                 ?wbexpr_val nt:001 ?geneid .
@@ -166,7 +166,7 @@ def queries_from_features(keywords):
             }
             """,
 
-        "expression_pattern" :
+        "expression_pattern" : # Gene expression patterns (ie. location in c elegans)
            """
             CONSTRUCT {                
                 ?wbexpr_pat nt:001 ?geneid .
@@ -181,30 +181,73 @@ def queries_from_features(keywords):
                 
             }
             """,
-
-        "disease-ontology" :
+        "lifestage-ontology" : # Structures expression_pattern nodes
             """
             CONSTRUCT {
-                ?disease rdfs:subClassOf ?disease2 .
+            ?node1 rdfs:subClassOf ?node2
             }
             WHERE {
-            ?wbdata nt:009 ?disease . # refers to disease associated with celegans gene
-            ?disease rdfs:subClassOf+ ?disease2 .
+            ?node1 rdfs:subClassOf ?node2 .
+            FILTER REGEX( STR(?node1), "https://wormbase.org/search/life_stage")
+            FILTER REGEX( STR(?node2), "https://wormbase.org/search/life_stage")
             }
+            """,
+
+        "disease-ontology" : # Structures disease nodes
+            """
+            CONSTRUCT {
+            ?disease rdfs:subClassOf ?disease2
+            }
+            WHERE {
+            ?disease rdfs:subClassOf ?disease2 .
+            FILTER REGEX( STR(?disease), "id=DOID:")
+            FILTER REGEX( STR(?disease2), "id=DOID:")
+}
             """,
             
-        "phenotype-ontology" :
+        "phenotype-ontology" : # Structures phenotype nodes
             """
             CONSTRUCT {
-                ?pheno rdfs:subClassOf ?pheno2 .
+            ?node1 rdfs:subClassOf ?node2
             }
             WHERE {
-                ?wbdata sio:001279 ?pheno .
-                ?pheno rdfs:subClassOf+ ?pheno2 .
+            ?node1 rdfs:subClassOf ?node2 .
+            FILTER REGEX( STR(?node1), "https://wormbase.org/species/all/phenotype/WBPhenotype:")
+            FILTER REGEX( STR(?node2), "https://wormbase.org/species/all/phenotype/WBPhenotype:")
             }
             """,
 
-        "toy-example" :
+        "go-annotation" : # Gene Ontology annotations
+            """
+            CONSTRUCT {
+            ?wbdata ?linktype ?goid .
+            }
+            WHERE {
+            ?wbdata ?linktype ?goid .
+            FILTER (REGEX(STR(?goid), "^" + STR(go:)))
+            FILTER (
+                ?linktype = ro:0002327 || # enables
+                ?linktype = ro:0001025 || # located_in
+                ?linktype = sio:000068 || # part_of
+                ?linktype = ro:0002331 || # involved_in
+                ?linktype = sio:001403 # is associated with
+            )
+            }
+            """,
+
+        "go-ontology" :  # Structures go nodes
+            """
+            CONSTRUCT {
+            ?node1 rdfs:subClassOf ?node2
+            }
+            WHERE {
+            ?node1 rdfs:subClassOf ?node2 .
+            FILTER REGEX( STR(?node1), "http://amigo.geneontology.org/amigo/term/GO:")
+            FILTER REGEX( STR(?node2), "http://amigo.geneontology.org/amigo/term/GO:")
+            }
+            """,
+
+        "toy-example" : # A toy example to test the pipeline
             """
             CONSTRUCT {
                 ?wbdata nt:001 ?gene .
@@ -294,3 +337,7 @@ def add_prefixes(query):
         PREFIX nt: <http://www.semanticweb.org/needed-terms#>"""
 
     return f"{prefixes}\n{query}"
+
+if __name__ == "__main__":
+    keywords = ['gene', 'phenotype', 'interaction', 'disease_plus_ortho', 'disease-ontology', 'phenotype-ontology', 'expression_pattern', 'lifestage-ontology', 'go-ontology', 'go-annotation']
+    load_celegans(keywords, sep=' ')

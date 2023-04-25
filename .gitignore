@@ -40,8 +40,15 @@ Thumbs.db
 query_result.txt
 celedebug.txt
 local_celegans.txt
+train.txt
+test.txt
+dev.txt
+val.txt
+t.sh
 infodump.txt
 *.csv
 models/*
 wandb
 __pycache__
+.err
+.out
