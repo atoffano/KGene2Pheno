@@ -65,8 +65,7 @@ def query_db(queries, sep):
                 for s, p, o in results:
                     if any(x.toPython() == '' for x in (s, p, o)): # Checks if the triple is complete
                         continue
-                    f.write(f'{s}{sep}{p}{sep}{o}\n')
-                    
+                    f.write(f'{s}{sep}{p}{sep}{o}\n')       
         except:
             raise Exception("Check that the query output is a triple like ?s ?p ?o. Reminder: You must use a CONSTRUCT query")
     print(f'{dt.now()} - Query executed !')
@@ -184,7 +183,7 @@ def queries_from_features(keywords):
         "lifestage-ontology" : # Structures expression_pattern nodes
             """
             CONSTRUCT {
-            ?node1 rdfs:subClassOf ?node2
+            ?node1 rdfs:subClassOf ?node2 .
             }
             WHERE {
             ?node1 rdfs:subClassOf ?node2 .
@@ -196,7 +195,7 @@ def queries_from_features(keywords):
         "disease-ontology" : # Structures disease nodes
             """
             CONSTRUCT {
-            ?disease rdfs:subClassOf ?disease2
+            ?disease rdfs:subClassOf ?disease2 .
             }
             WHERE {
             ?disease rdfs:subClassOf ?disease2 .
@@ -208,7 +207,7 @@ def queries_from_features(keywords):
         "phenotype-ontology" : # Structures phenotype nodes
             """
             CONSTRUCT {
-            ?node1 rdfs:subClassOf ?node2
+            ?node1 rdfs:subClassOf ?node2 .
             }
             WHERE {
             ?node1 rdfs:subClassOf ?node2 .
@@ -238,7 +237,7 @@ def queries_from_features(keywords):
         "go-ontology" :  # Structures go nodes
             """
             CONSTRUCT {
-            ?node1 rdfs:subClassOf ?node2
+            ?node1 rdfs:subClassOf ?node2 .
             }
             WHERE {
             ?node1 rdfs:subClassOf ?node2 .
@@ -339,5 +338,15 @@ def add_prefixes(query):
     return f"{prefixes}\n{query}"
 
 if __name__ == "__main__":
-    keywords = ['gene', 'phenotype', 'interaction', 'disease_plus_ortho', 'disease-ontology', 'phenotype-ontology', 'expression_pattern', 'lifestage-ontology', 'go-ontology', 'go-annotation']
+    # Change directory to the current file path
+    current_file_path = os.path.realpath(__file__)
+    current_dir = os.path.dirname(current_file_path)
+    os.chdir(current_dir)
+
+    if os.path.exists("query_result.txt") == True:
+        os.remove("query_result.txt")
+
+    keywords = ['gene', 'phenotype', 'interaction', 'disease_plus_ortho',
+     'disease-ontology', 'phenotype-ontology', 'expression_pattern',
+      'lifestage-ontology', 'go-ontology', 'go-annotation']
     load_celegans(keywords, sep=' ')
