@@ -137,7 +137,7 @@ def main():
     
 def train_model(method, dataset, config, timestart):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        import antoine.gene_pheno_pred.methods.TorchKGE.train as train
+        import methods.TorchKGE.train as train
         emb_model, kg_train, kg_val, kg_test= train.train(method, dataset, config, timestart)
     elif method == "MultiVERSE":
         pass
