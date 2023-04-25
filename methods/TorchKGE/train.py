@@ -70,9 +70,9 @@ def train(method, dataset, config, timestart):
     match config['loss_fn']:
         case "margin":
             criterion = MarginLoss(margin=config['margin'])
-        case "bce":
+        case "logistic":
             criterion = LogisticLoss()
-        case 'logistic':
+        case "bce":
             criterion = BinaryCrossEntropyLoss()
         case _:
             raise ValueError(f"Loss function {config['loss_fn']} not supported.")
