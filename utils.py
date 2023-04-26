@@ -104,7 +104,22 @@ def queries_from_features(keywords):
             WHERE {
                 ?wbpheno nt:001 ?geneid .
                 ?wbpheno ?rel ?pheno .
-                FILTER(?rel = sio:000281|| ?rel = sio:001279)
+                FILTER(?rel = sio:001279)
+                ?wbpheno sio:000772 ?eco .
+  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) # Exclude go: annotations
+            }
+            """,
+
+        "not-phenotype" : # Phenotypes associated to gene and gene products
+           """
+            CONSTRUCT {
+                ?wbpheno nt:001 ?geneid .
+                ?wbpheno ?rel ?pheno .
+            }
+            WHERE {
+                ?wbpheno nt:001 ?geneid .
+                ?wbpheno ?rel ?pheno .
+                FILTER(?rel = sio:000281)
                 ?wbpheno sio:000772 ?eco .
   				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) # Exclude go: annotations
             }
@@ -348,7 +363,7 @@ if __name__ == "__main__":
 
     keywords = ['gene', 'phenotype', 'interaction', 'disease_plus_ortho',
      'disease-ontology', 'phenotype-ontology', 'expression_pattern',
-      'lifestage-ontology', 'go-ontology', 'go-annotation']
+      'lifestage-ontology'] # , 'go-ontology', 'go-annotation'
     load_celegans(keywords, sep=' ')
     
     print("All queries executed, results saved in query_result.txt")
