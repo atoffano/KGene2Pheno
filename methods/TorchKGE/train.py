@@ -32,7 +32,7 @@ def train(method, dataset, config, timestart):
         print(f'Number of relations: {kg.n_rel}')
         print(f'Number of triples: {kg.n_facts}')
 
-    # Define the emb_model, criterion, optimizer, sampler and dataloader
+    # Define the embedding model
     match method:
         case "TransE":
             emb_model = TransEModel(config['ent_emb_dim'], kg_train.n_ent, kg_train.n_rel, dissimilarity_type=config['dissimilarity_type'])
@@ -56,17 +56,30 @@ def train(method, dataset, config, timestart):
             emb_model = AnalogyModel(config['ent_emb_dim'], kg_train.n_ent, kg_train.n_rel, config['scalar_share'])
         case "ConvKB":
             if config['init_transe']:
-                    init_model = TransEModel(emb_dim=50, n_entities=675845, n_relations=10, dissimilarity_type='L1')
-                    init_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TorchKGE/TransE_2023-03-22 14:54:57.152481.pt'))
-                    ent_emb, rel_emb = init_model.get_embeddings()
-                    emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
-                    emb_model.ent_emb.weight.data = ent_emb
-                    emb_model.rel_emb.weight.data = rel_emb
+                # Decide whether to train a TransE from scratch or load a pretrained one
+                if type(config['init_transe']) == bool:
+                    # Train a TransE model to initialize the embeddings.
+                    # Config will be the same as the one used for ConvKB unless a path is specified as arg.
+                    init_model, _, _, _ = train('TransE', dataset, config, timestart)
+
+                elif type(config['init_transe']) == str:
+                    # Load a pretrained TransE model
+                    path, emb_dim, n_entities, n_relations, dissimilarity_type = config['init_transe'].split(',')
+                    init_model = TransEModel(emb_dim=emb_dim, n_entities=n_entities, n_relations=n_relations, dissimilarity_type=dissimilarity_type)
+                    init_model.load_state_dict(torch.load(path))
+
+                # Initialize the ConvKB model's weights with the TransE embeddings
+                ent_emb, rel_emb = init_model.get_embeddings()
+                emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
+                emb_model.ent_emb.weight.data = ent_emb
+                emb_model.rel_emb.weight.data = rel_emb
 
         case _:
             raise ValueError(f"Method {method} not supported.")
+        
     wandb.watch(emb_model, log="all")
 
+    # Define the loss function, the dataloader, the optimizer and the negative sampler
     match config['loss_fn']:
         case "margin":
             criterion = MarginLoss(margin=config['margin'])
@@ -96,7 +109,7 @@ def train(method, dataset, config, timestart):
     else:
         device = torch.device('cpu')
 
-    # Train the emb_model
+    # Train the embedding model
     iterator = tqdm(range(config['n_epochs']), unit='epoch')
     for epoch in iterator:
         running_loss = 0.0
@@ -121,6 +134,7 @@ def train(method, dataset, config, timestart):
             emb_model.normalize_parameters()
     print(f'{dt.now()} - Finished Training !')
 
+    # Save the model and the data
     if config['save_model']:
         torch.save(emb_model.state_dict(), f'models/TorchKGE/{method}_{timestart}.pt')
     if config['save_data']:
@@ -128,6 +142,7 @@ def train(method, dataset, config, timestart):
         kg_test.get_df().to_csv(f'models/TorchKGE/{method}_{timestart}_kg_test.csv')
         kg_val.get_df().to_csv(f'models/TorchKGE/{method}_{timestart}_kg_val.csv')
 
+    # Evaluate the model on a relation prediction task to get performance (Hit@k, MRR)
     evaluate_emb_model(emb_model, kg_val)
     return emb_model, kg_train, kg_val, kg_test
 
