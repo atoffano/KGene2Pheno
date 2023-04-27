@@ -40,7 +40,7 @@ def main():
 
     # ConvKB
     parser.add_argument('--n_filters', required=False, default=100, type=int, help='Number of filters (ConvKB)')
-    parser.add_argument('--init_transe', required=False, default=True, help='whether to init convKB with transe embeddings')
+    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to init convKB with transe embeddings')
 
     # ANALOGY
     parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')

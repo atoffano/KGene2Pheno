@@ -62,9 +62,12 @@ def train(method, dataset, config, timestart):
                     # Config will be the same as the one used for ConvKB unless a path is specified as arg.
                     init_model, _, _, _ = train('TransE', dataset, config, timestart)
 
-                elif type(config['init_transe']) == str:
+                else:
                     # Load a pretrained TransE model
-                    path, emb_dim, n_entities, n_relations, dissimilarity_type = config['init_transe'].split(',')
+                    try:
+                        path, emb_dim, n_entities, n_relations, dissimilarity_type = config['init_transe']
+                    except:
+                        raise ValueError(f"init_transe should be a tuple (path, emb_dim, n_entities, n_relations, dissimilarity_type) or a boolean.")
                     init_model = TransEModel(emb_dim=emb_dim, n_entities=n_entities, n_relations=n_relations, dissimilarity_type=dissimilarity_type)
                     init_model.load_state_dict(torch.load(path))
 
