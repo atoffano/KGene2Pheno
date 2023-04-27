@@ -26,7 +26,7 @@ def train(method, dataset, config, timestart):
 
     print('Splitting knowledge graph..')
     kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
-    
+
     # Print number of entities and relations in each set:
     for kg in [kg_train, kg_val, kg_test]:
         print(f'\n{kg}')
@@ -70,6 +70,7 @@ def train(method, dataset, config, timestart):
                     try:
 
                         path, emb_dim, dissimilarity_type = config['init_transe']
+                        emb_dim = int(emb_dim)
                     except:
                         raise ValueError(f"init_transe should have the following args: path, emb_dim, dissimilarity_type or a boolean.")
                     init_model = TransEModel(emb_dim=emb_dim, n_entities=kg_train.n_ent, n_relations=kg_train.n_rel, dissimilarity_type=dissimilarity_type)
