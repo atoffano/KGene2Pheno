@@ -106,7 +106,7 @@ def queries_from_features(keywords):
                 ?wbpheno ?rel ?pheno .
                 FILTER(?rel = sio:001279)
                 ?wbpheno sio:000772 ?eco .
-  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) # Exclude go: annotations
+  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) 
             }
             """,
 
@@ -121,7 +121,7 @@ def queries_from_features(keywords):
                 ?wbpheno ?rel ?pheno .
                 FILTER(?rel = sio:000281)
                 ?wbpheno sio:000772 ?eco .
-  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) # Exclude go: annotations
+  				FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) 
             }
             """,
 
@@ -192,9 +192,9 @@ def queries_from_features(keywords):
                 ?wbexpr_pat nt:001 ?geneid .
                 ?wbexpr_pat nt:004 ?expr_id .
                 ?wbexpr_pat nt:002 ?wblifestage .
-                
             }
             """,
+            
         "lifestage-ontology" : # Structures expression_pattern nodes
             """
             CONSTRUCT {

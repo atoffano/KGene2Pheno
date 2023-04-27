@@ -23,8 +23,10 @@ def train(method, dataset, config, timestart):
     # Dataset loading and splitting
     df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
     kg = KnowledgeGraph(df)
-    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
 
+    print('Splitting knowledge graph..')
+    kg_train, kg_val, kg_test = kg.split_kg(share=config['split_ratio'], validation=True)
+    
     # Print number of entities and relations in each set:
     for kg in [kg_train, kg_val, kg_test]:
         print(f'\n{kg}')
@@ -61,21 +63,25 @@ def train(method, dataset, config, timestart):
                     # Train a TransE model to initialize the embeddings.
                     # Config will be the same as the one used for ConvKB unless a path is specified as arg.
                     init_model, _, _, _ = train('TransE', dataset, config, timestart)
+                    print('TransE model trained.')
 
                 else:
                     # Load a pretrained TransE model
                     try:
-                        path, emb_dim, n_entities, n_relations, dissimilarity_type = config['init_transe']
+
+                        path, emb_dim, dissimilarity_type = config['init_transe']
                     except:
-                        raise ValueError(f"init_transe should be a tuple (path, emb_dim, n_entities, n_relations, dissimilarity_type) or a boolean.")
-                    init_model = TransEModel(emb_dim=emb_dim, n_entities=n_entities, n_relations=n_relations, dissimilarity_type=dissimilarity_type)
+                        raise ValueError(f"init_transe should have the following args: path, emb_dim, dissimilarity_type or a boolean.")
+                    init_model = TransEModel(emb_dim=emb_dim, n_entities=kg_train.n_ent, n_relations=kg_train.n_rel, dissimilarity_type=dissimilarity_type)
                     init_model.load_state_dict(torch.load(path))
+                    print(f'TransE model loaded from {path}')
 
                 # Initialize the ConvKB model's weights with the TransE embeddings
                 ent_emb, rel_emb = init_model.get_embeddings()
                 emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
                 emb_model.ent_emb.weight.data = ent_emb
                 emb_model.rel_emb.weight.data = rel_emb
+                print('ConvKB model initialized with TransE embeddings.')
 
         case _:
             raise ValueError(f"Method {method} not supported.")

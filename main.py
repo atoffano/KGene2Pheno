@@ -39,7 +39,7 @@ def main():
     parser.add_argument('--rel_emb_dim', required=False, default=50, type=int, help='Size of entity embeddings')
 
     # ConvKB
-    parser.add_argument('--n_filters', required=False, default=100, type=int, help='Number of filters (ConvKB)')
+    parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of filters (ConvKB)')
     parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to init convKB with transe embeddings')
 
     # ANALOGY
@@ -54,7 +54,7 @@ def main():
 
     
     args = parser.parse_args()
-    
+
     # Change directory to the current file path
     current_file_path = os.path.realpath(__file__)
     current_dir = os.path.dirname(current_file_path)
@@ -65,9 +65,7 @@ def main():
         
     # Create log file
     timestart = dt.now()
-    log_file = open(f"log/{str(timestart).replace(' ', '_')}_{args.method}.log", "w")
-    sys.stdout = log_file
-    sys.stderr = log_file
+
 
     # Gather data, either from local file or SPAQL endpoint
     if args.query:
@@ -130,10 +128,7 @@ def main():
     if config['get_scores']:
         get_scores(emb_model, dataset, config)
         
-    # Close log file
-    log_file.close()
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
+
     
 def train_model(method, dataset, config, timestart):
     if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
@@ -180,6 +175,6 @@ def train_model(method, dataset, config, timestart):
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
     main()
