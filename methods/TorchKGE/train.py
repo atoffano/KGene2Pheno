@@ -59,7 +59,7 @@ def train(method, dataset, config, timestart):
         case "ConvKB":
             if config['init_transe']:
                 # Decide whether to train a TransE from scratch or load a pretrained one
-                if type(config['init_transe']) == bool:
+                if config['init_transe'] == []:
                     # Train a TransE model to initialize the embeddings.
                     # Config will be the same as the one used for ConvKB unless a path is specified as arg.
                     init_model, _, _, _ = train('TransE', dataset, config, timestart)
@@ -68,7 +68,6 @@ def train(method, dataset, config, timestart):
                 else:
                     # Load a pretrained TransE model
                     try:
-
                         path, emb_dim, dissimilarity_type = config['init_transe']
                         emb_dim = int(emb_dim)
                     except:
