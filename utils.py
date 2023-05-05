@@ -76,7 +76,7 @@ def queries_from_features(keywords):
             """
             CONSTRUCT {
                 ?geneid rdf:type ?type .
-                ?geneid rdf:label ?lab .
+                ?geneid rdfs:label ?lab .
             }
             WHERE {
                 ?geneid rdf:type ?type .
@@ -194,7 +194,7 @@ def queries_from_features(keywords):
                 ?wbexpr_pat nt:002 ?wblifestage .
             }
             """,
-            
+
         "lifestage-ontology" : # Structures expression_pattern nodes
             """
             CONSTRUCT {
@@ -216,7 +216,7 @@ def queries_from_features(keywords):
             ?disease rdfs:subClassOf ?disease2 .
             FILTER REGEX( STR(?disease), "id=DOID:")
             FILTER REGEX( STR(?disease2), "id=DOID:")
-}
+            }
             """,
             
         "phenotype-ontology" : # Structures phenotype nodes
