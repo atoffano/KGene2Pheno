@@ -5,8 +5,12 @@ import sys
 import pandas as pd
 import yaml
 import wandb
+import torch
+from torch import cuda
 
 import classifier
+import train
+import embeddings
 
 def main():
     '''Parse the command line arguments'''
@@ -47,7 +51,8 @@ def main():
     
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
 
-    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
+    parser.add_argument('--classifier', nargs='*', required=False, default=False, help='train a classifier on the embeddings')
+    parser.add_argument('--get_embeddings', action='store_true', help='Compute embeddings for the given method')
 
     parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
     parser.add_argument('--save_data', action='store_true', help='whether to save the data splits')
@@ -63,12 +68,11 @@ def main():
     if os.path.exists("query_result.txt") == True:
         os.remove("query_result.txt")
         
-    # Create log file
     timestart = dt.now()
-
+    print(f"Start time: {timestart}")
 
     # Gather data, either from local file or SPAQL endpoint
-    if args.query:
+    if args.query: # Query the SPARQL endpoint
         dataset = load_by_query(args.query)
 
     elif args.dataset and args.method != "PhenoGeneRanker":
@@ -81,14 +85,15 @@ def main():
                 dataset = "toy-example.txt"
             case _:
                 raise Exception("Dataset not supported.")
-            
-    elif args.dataset and args.method == "PhenoGeneRanker":
-        dataset = load_pgr(args.keywords, sep='\t')
+    
+    # Legacy code for incomplete PhenoGeneRanker implementation
+    # elif args.dataset and args.method == "PhenoGeneRanker":
+    #     dataset = load_pgr(args.keywords, sep='\t')
     else:
         raise Exception("No dataset or query provided.")
 
     # Load config and init wandb tracking
-    if args.default_config:
+    if args.default_config: # TODO : add default config for each method
         with open(f'methods/TorchKGE/config/{args.method}.yaml', 'r') as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
     else:
@@ -111,68 +116,33 @@ def main():
     }
 
     wandb.login()
-    wandb.init(project="cigap-go", config=config)
+    wandb.init(project="cigap-base", config=config)
+
+    # CUDA parameters
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+    else:
+        device = torch.device('cpu')
+    print(f'Using device: {device}')
 
     # Train embedding model with the selected method
-    if config['method']:
-        train_model(args.method, dataset, config, timestart)
-        if dataset not in ['toy-example.txt', 'local_celegans.txt']:
-            os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
-
-    if config['classifier']:
-        classifier.train_classifier(emb_model, kg_train, kg_val, kg_test)
-
-    if config['get_embeddings']:
-        get_embeddings(emb_model, dataset, config)
-    
-    if config['get_scores']:
-        get_scores(emb_model, dataset, config)
-        
-
-    
-def train_model(method, dataset, config, timestart):
-    if method in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        import methods.TorchKGE.train as train
-        emb_model, kg_train, kg_val, kg_test= train.train(method, dataset, config, timestart)
-    elif method == "MultiVERSE":
-        pass
-    elif method == "PhenoGeneRanker":
-        pass
-    elif method == "DeepPheno":
-        pass
-    elif method == "HybridGNN":
-        pass
-    elif method == "AnyBURL":
-        import subprocess
-
-        # Check data file validity
-        with open(dataset, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                if not str.isalpha(line[0]):
-                    raise Exception("AnyBURL expects that each identifier that appears in the data file starts with a alphabetic character and consists of at least 2 letters.")
-        
-        # Add training path to config file
-        with open('methods/AnyBURL/config-learn.properties', 'a') as f:
-            lines = f.readlines()
-            f.write(f'PATH_TRAINING = {dataset}')
-        
-            subprocess.run(["java", "-Xmx10G", "-cp", "methods/AnyBURL/AnyBURL-23-1.jar", "de.unima.ki.anyburl.Learn", "config-learn.properties"], capture_output=True)
-
-        # Remove the changes made to the config file
-        with open('methods/AnyBURL/config-learn.properties', 'w') as f:
-            f.write(lines)
-    elif method == "GraphLP":
-        pass
-    elif method == "Relphormer":
-        pass
+    if config['method'] and config['method'] in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
+        emb_model, kg_train, kg_test, timestart = train.train(config['method'], dataset, config, timestart, device)
     else:
         raise Exception("Method not supported. Check spelling ?")
 
-    return emb_model, kg_train, kg_val, kg_test
+    if dataset not in ['toy-example.txt', 'local_celegans.txt']:
+        os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
+    if config['classifier']:
+        data_path = f'{current_dir}/models/{config["method"]}_{timestart}_kg_test.csv'
+        embeddings.generate(emb_model, kg_test, data_path, device)
+        classifier.binary_classifier(config['classifier'], data_path, timestart, save=config['save_model'])
 
-
+    if config['get_embeddings']:
+        pass
 
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"]="0"

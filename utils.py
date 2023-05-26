@@ -4,42 +4,25 @@ import warnings
 import os
 from datetime import datetime as dt
 import pandas as pd
+from time import time
 
 
+def timer_func(func):
+    # This function shows the execution time of the function object passed
+    def wrap_func(*args, **kwargs):
+        t1 = time()
+        result = func(*args, **kwargs)
+        t2 = time()
+        print(f'Function {func.__name__!r} executed in {(t2-t1):.4f}s')
+        return result
+    return wrap_func
+
+@timer_func
 def load_celegans(keywords, sep):
     print(f'{dt.now()} - Querying celegans dataset withthe following features : {keywords}.')
     queries = queries_from_features(keywords)
     query_db(queries, sep)
     return 'query_result.txt'
-
-def load_pgr(keywords, sep):
-    feature_type = {
-        "pgr-gene-pheno" : "bipartite",
-        "pgr-gene-gene" : "gene",
-        "pgr-gene-disease" : "bipartite",
-        "pgr-pheno-pheno" : "phenotype",
-        "pgr-disease-disease" : "phenotype",
-    }
-
-    for keyword in keywords:
-        # Retrieve data files
-        load_celegans([keyword], sep)
-        with open('query_result.txt', 'r') as f:
-            lines = f.readlines()
-        with open(f'{keyword}.txt', 'a') as f:
-            f.write(f'from{sep}to{sep}weight\n')
-            for line in lines:
-                parsed = line.split(sep)
-                parsed = parsed[0] + sep + parsed[2].strip('\n') + sep + '1.000\n'
-                f.write(parsed)
-        os.remove('query_result.txt')
-
-    # Create input file
-    with open('input.txt', 'a') as f:
-        f.write(f'type{sep}file_name\n')
-        for keyword in keywords:
-            f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
-    return 'input.txt'
 
 def load_by_query(query):
     query = add_prefixes(query)
@@ -286,6 +269,145 @@ def queries_from_features(keywords):
                 ?type = sio:001229    # snoRNA gene
             )            
             }
+            """,
+
+        "simplified_graph_structure" : # A simplified graph structure
+            """
+            CONSTRUCT
+            {
+            #from geneid
+            ?geneid rdf:type ?genetype .
+            ?geneid rdfs:label ?genelabel .
+            #from phenotype data
+            ?geneidphe ?rel1 ?phenoid . #has_phenotype
+            #from interaction data
+            ?geneidinter1 mi0915 ?genidinter2 . #direct_interaction
+            #from disease data
+            ?geneiddis ro:0002331 ?disid . #involved_in
+            #from disease with orthology data
+            ?geneiddisortho ro:0002331 ?disorthoid . #involved_in
+            #from expression graph data
+            #?geneidexpgr sio:000300 ?expgr_value . #has_value
+            #?expgr_value nt:002 ?lifestageexpgr . #refers_to_lifestage
+            #?geneidexpgr ro:0002206 ?lifestageexpgr . #expressed_in
+            #from development data
+            ?geneiddev ro:0002206 ?lifestagedev . #expressed_in
+            ?geneiddev nt:004 ?expatdev . #refers_to_expression pattern
+            ?expatdev nt:002 ?lifestagedev . #refers_to_lifestage
+            #from ontologies
+            ?class rdfs:subClassOf ?parentclass .
+            }
+            WHERE
+            {
+            #gene data
+            {
+                ?geneid sio:000068 taxon:6239 .
+                ?geneid rdf:type ?genetype . # << link to sio ontology
+                ?geneid rdfs:label ?genelabel .
+                FILTER (
+                        ?genetype = sio:000985 || #protein coding gene
+                        ?genetype = sio:010035 || # gene
+                        ?genetype = sio:000988 || # pseudogene
+                        ?genetype = sio:001230 || # tRNA gene
+                        ?genetype = sio:000790 || # non coding RNA gene (includes ncRNA, miRNA, linc RNA, piRNA, antisense lncRNA)
+                        ?genetype = sio:001182 || # rRNA gene
+                        ?genetype = sio:001227 || # scRNA gene
+                        ?genetype = sio:001228 || # snRNA gene
+                        ?genetype = sio:001229    # snoRNA gene
+                        )
+            }
+            UNION
+            #phenotypes data
+            {
+            VALUES ?rel1 { sio:001279 } #has_phenotype
+            ?dataphe nt:001 ?geneidphe .
+            ?dataphe ?rel1 ?phenoid . #<< linked to pheno ontology
+            ?phenoid rdfs:label ?phenolabel . #<< linked to pheno ontology
+            ?dataphe sio:000772 ?ecopheid . #<< linked to eco ontology
+            ?rel1 rdfs:label ?rel1label . #<< linked to sio ontology
+            }
+            UNION
+            {
+            #  VALUES ?rel2 { sio:000281 } #negation/not
+            #  ?dataphenot nt:001 ?geneidphenot .
+            #  ?dataphenot ?rel2 ?phenonotid . #<< linked to pheno ontology
+            #  ?phenonotid rdfs:label ?phenonotlabel . #<< linked to pheno ontology
+            #  ?dataphenot sio:000772 ?ecophenotid . #<< linked to eco ontology
+            #  ?rel2 rdfs:label ?rel2label . #<< linked to sio ontology
+            }
+            UNION
+            #interactions data
+            {
+                ?datainter nt:001 ?geneidinter1 .
+                ?datainter nt:001 ?geneidinter2 .
+                ?datainter sio:000628 ?infointer .
+                ?datainter rdf:type ?intertype . 
+                FILTER ( ?geneidinter1 != ?geneidinter2 )
+            }
+            UNION
+            #disease data without orthologous derived data
+            {
+                ?datadis nt:001 ?geneiddis .
+                ?datadis nt:009 ?disid .
+                ?datadis sio:000772 ?ecodisid .
+                ?datadis dcterms:source ?refdisid .
+            }
+            UNION
+            #disease by orthology
+            {
+                VALUES ?ecodisorthoid2 { eco:0000201 } #sequence_orthology_evidence
+                ?dataorthodis nt:001 ?geneiddisortho .
+                ?dataorthodis nt:009 ?disorthoid .
+                ?dataorthodis sio:000558 ?hhncid .
+                ?dataorthodis sio:000772 ?ecodisorthoid1 .
+                ?dataorthodis sio:000772 ?ecodisorthoid2 .
+                FILTER ( ?ecodisorthoid1 != ?ecodisorthoid2 )
+            }
+            UNION
+            #expression graph
+            {
+                ?dataexpgr nt:001 ?geneidexpgr .
+                ?dataexpgr nt:002 ?lifestageexpgr .
+                ?dataexpgr sio:000300 ?expgr_value .
+            }
+            UNION
+            #development association
+            {
+                ?datadev nt:001 ?geneiddev .
+                ?datadev nt:002 ?lifestagedev .
+                ?datadev dcterms:source ?refdev .
+                ?datadev sio:000772 ?ecodev .
+                ?datadev nt:004 ?expatdev .
+            }
+            UNION
+            # disease ontology
+            {
+                ?class rdfs:subClassOf ?parentclass .
+                FILTER REGEX( STR(?class), "id=DOID")
+                FILTER REGEX( STR(?parentclass), "id=DOID")
+            }
+            UNION
+            # phenotype ontology
+            {
+                ?class rdfs:subClassOf ?parentclass .
+                FILTER REGEX ( STR(?class), "https://wormbase.org/species/all/phenotype/WBPhenotype:")
+                FILTER REGEX (STR(?parentclass), "https://wormbase.org/species/all/phenotype/WBPhenotype:")
+            }
+            UNION
+            # development ontology
+            {
+                ?class rdfs:subClassOf ?parentclass .
+                FILTER REGEX( STR(?class), "https://wormbase.org/search/life_stage")
+                FILTER REGEX( STR(?parentclass), "https://wormbase.org/search/life_stage")
+            }
+            UNION
+            # ECO ontology
+            {
+            #    ?class rdfs:subClassOf ?parentclass .
+            #    FILTER REGEX( STR(?class), "/obo/ECO")
+            #    FILTER REGEX( STR(?parentclass), "/obo/ECO")
+            }
+            }
             """
     }
     
@@ -351,6 +473,36 @@ def add_prefixes(query):
         PREFIX nt: <http://www.semanticweb.org/needed-terms#>"""
 
     return f"{prefixes}\n{query}"
+
+# Legacy code to load data in the format required by PhenoGeneRanker. Implementation incomplete.
+# def load_pgr(keywords, sep):
+#     feature_type = {
+#         "pgr-gene-pheno" : "bipartite",
+#         "pgr-gene-gene" : "bipartite",
+#         "pgr-gene-disease" : "bipartite",
+#         "pgr-pheno-pheno" : "bipartite",
+#         "pgr-disease-disease" : "bipartite",
+#     }
+
+#     for keyword in keywords:
+#         # Retrieve data files
+#         load_celegans([keyword], sep)
+#         with open('query_result.txt', 'r') as f:
+#             lines = f.readlines()
+#         with open(f'{keyword}.txt', 'a') as f:
+#             f.write(f'from{sep}to{sep}weight\n')
+#             for line in lines:
+#                 parsed = line.split(sep)
+#                 parsed = parsed[0] + sep + parsed[2].strip('\n') + sep + '1.000\n'
+#                 f.write(parsed)
+#         os.remove('query_result.txt')
+
+#     # Create input file
+#     with open('input.txt', 'a') as f:
+#         f.write(f'type{sep}file_name\n')
+#         for keyword in keywords:
+#             f.write(f'{feature_type[keyword]}{sep}{keyword}.txt\n')
+#     return 'input.txt'
 
 if __name__ == "__main__":
     # Change directory to the current file path

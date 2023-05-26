@@ -2,7 +2,7 @@
 import torchkge
 import pandas as pd
 
-df = pd.read_csv('/home/antoine/gene_pheno_pred/local_celegans.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
+df = pd.read_csv('/home/antoine/gene_pheno_pred/local_celegans_go.txt', sep=' ', header=None, names=['from', 'rel', 'to'])
 kg = torchkge.KnowledgeGraph(df)
 kg_train, kg_val, kg_test = kg.split_kg(share=0.8, validation=True)
 
