@@ -9,6 +9,7 @@ import torch
 # from ignite.handlers import EarlyStopping
 # from ignite.metrics import RunningAverage
 from torch.optim import Adam
+from torch import cuda
 
 from torchkge.evaluation import *
 from torchkge.models import *
@@ -20,7 +21,7 @@ from sklearn.metrics import confusion_matrix
 from utils import timer_func
 
 @timer_func
-def train(method, dataset, config, timestart, device):
+def train(method, dataset, config, timestart):
     """
     Train the embedding model using the specified method and dataset.
 
@@ -44,6 +45,15 @@ def train(method, dataset, config, timestart, device):
     kg_test : torchkge.data_structures.KnowledgeGraph
         The test knowledge graph.
     """
+
+    # Move everything to CUDA if available
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+        emb_model.to(device)
+    else:
+        device = torch.device('cpu')
 
     # Dataset loading and splitting
     df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
@@ -310,25 +320,32 @@ def evaluate_emb_model(emb_model, kg_eval, device):
     evaluator.print_results(k=[i for i in range(1, 11)])
 
     # Log results to wandb
-    get_results(evaluator)
-
-
-def get_results(evaluator):
-    for k in range(1, 11):
-        wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
-    wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
-    wandb.log({'MRR': evaluator.mrr()[0]})
+    # for k in range(1, 11):
+    #     wandb.log({f'Hit@{k}': evaluator.hit_at_k(k)[0]})
+    # wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
+    # wandb.log({'MRR': evaluator.mrr()[0]})
 
 def inference_from_checkpoint(emb_model_path, test_path, device):
-    emb_model = TransHModel(50,675845,10)
+    emb_model = TransEModel(50,675845,10, dissimilarity_type='L1')
     emb_model.load_state_dict(torch.load(emb_model_path))
     emb_model.to(device)
     kg_test = KnowledgeGraph(pd.read_csv(test_path))
-    evaluate_emb_model(emb_model, kg_test)
+    evaluate_emb_model(emb_model, kg_test, device)
 
 if __name__ == '__main__':
     # # Loads a model and the relevant test data, and run on a test set
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_test.csv')
     import os
     os.chdir('/home/antoine/gene_pheno_pred')
-    # train('TransE', "celedebug.txt", dt.now())
+    os.environ["CUDA_VISIBLE_DEVICES"]="2"
+
+    # Move everything to CUDA if available
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+    else:
+        device = torch.device('cpu')
+
+    inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766.pt', '/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766_kg_train.csv', device)
+

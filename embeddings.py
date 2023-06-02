@@ -1,6 +1,5 @@
 
 from tqdm import tqdm
-from datetime import datetime as dt
 import numpy as np
 
 import pandas as pd
@@ -104,25 +103,25 @@ if __name__ == '__main__':
     # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
     import os
     os.chdir('/home/antoine/gene_pheno_pred')
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
     # # Dataset loading
-    # print("Loading train dataset..")
-    # df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TorusE_2023-05-04 13:04:52.960986_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    # kg_train = KnowledgeGraph(df)
+    print("Loading train dataset..")
+    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/non-reified_ComplEx_2023-05-05 17:04:52.671826_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    kg_train = KnowledgeGraph(df)
 
-    print("Loading val dataset..")
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766_kg_val.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    kg_val = KnowledgeGraph(df)
+    # print("Loading val dataset..")
+    # df = pd.read_csv('/home/antoine/gene_pheno_pred/models/ComplEx_2023-05-27 20:08:45.227169_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    # kg_val = KnowledgeGraph(df)
 
-    print("Loading test dataset..")
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766_kg_test.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    kg_test = KnowledgeGraph(df)
+    # print("Loading test dataset..")
+    # df = pd.read_csv('/home/antoine/gene_pheno_pred/models/ComplEx_2023-05-27 20:08:45.227169_kg_test.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    # kg_test = KnowledgeGraph(df)
     
     # Model loading
     print("Loading model..")
-    emb_model = TorusEModel(50, 675845, 10, dissimilarity_type='torus_L1')
-    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766.pt'))
+    emb_model = ComplExModel(emb_dim=50, n_entities=99699, n_relations=9)
+    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/non-reified_ComplEx_2023-05-05 17:04:52.671826.pt'))
 
     # Move everything to CUDA if available
     use_cuda = cuda.is_available()
@@ -133,5 +132,5 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    for name, dataset in zip(['val', 'test'], [kg_val, kg_test]):
-        generate(emb_model, dataset, data_path=f'/home/antoine/gene_pheno_pred/TransE_2023-05-04_17-19-26_kg_{name}.csv', device=device)
+    # for name, dataset in zip(['train', 'test'], [kg_train, kg_test]):
+    generate(emb_model, kg_train, data_path=f'/home/antoine/gene_pheno_pred/non-reified_ComplEx_2023-05-05 17:04:52.671826_kg_train.csv', device=device)

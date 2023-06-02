@@ -145,6 +145,6 @@ def main():
         pass
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="2"
     os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
     main()

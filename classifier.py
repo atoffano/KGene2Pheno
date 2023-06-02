@@ -25,7 +25,7 @@ def binary_classifier(model_type, data_path, timestart, save=False):
     # Load data
     data = pd.read_csv(data_path, header=0)
     data['link'] = data['relation'].apply(lambda x: 1 if x != 'no_link_known' else 0) # Convert relations to binary label
-    data = data.drop('relation', axis=1)
+    data = data.drop(['head', 'relation', 'tail'], axis=1)
 
     # Experiment setup
     s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=True, use_gpu = True)
