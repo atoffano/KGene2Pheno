@@ -1,14 +1,14 @@
 import argparse
-from utils import *
 import os
 import sys
 import pandas as pd
 import yaml
 # import wandb
 
-import classifier
-import train
-import embeddings
+from src.utils import *
+import src.classifier
+import src.train
+import src.embeddings
 
 def main():
     '''Parse the command line arguments'''
@@ -125,7 +125,7 @@ def main():
         os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
     if config['classifier']:
-        classifier.binary_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
+        classifier.train_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
 
     if config['get_embeddings']:
         embeddings.get_embeddings(emb_model, dataset, config)

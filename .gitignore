@@ -49,6 +49,7 @@ infodump.txt
 *.csv
 models/*
 wandb
+models_classif
 __pycache__
 .err
 .out
