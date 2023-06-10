@@ -23,6 +23,14 @@ def main():
     parser.add_argument('--data_format', default=None, help='Format of the dataset')
     parser.add_argument('--ouput', default='./', help='Directory to store the data')
 
+    parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
+
+    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
+
+    parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
+    parser.add_argument('--save_data', action='store_true', help='whether to save the data split')
+    parser.add_argument('--save_embeddings', action='store_true', help='whether to save the embeddings as csv')
+
     # Add torchkge arguments
     parser.add_argument('--default_config', action='store_true', help='Use the default config file for the given method.')
 
@@ -42,17 +50,11 @@ def main():
 
     # ConvKB
     parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of filters (ConvKB)')
-    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to init convKB with transe embeddings')
+    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to initialize ConvKB with transe embeddings')
 
     # ANALOGY
     parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')
     
-    parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
-
-    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
-
-    parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
-    parser.add_argument('--save_data', action='store_true', help='whether to save the data splits')
 
     
     args = parser.parse_args()
@@ -62,10 +64,10 @@ def main():
     current_dir = os.path.dirname(current_file_path)
     os.chdir(current_dir)
 
-    if os.path.exists("query_result.txt") == True:
+    if os.path.exists("query_result.txt") == True: # Remove query artifacts from previous runs
         os.remove("query_result.txt")
         
-    timestart = dt.now()
+    timestart = dt.now() # Start time
     print(f"Start time: {timestart}")
         
     # Gather data, either from local file or SPAQL endpoint
@@ -89,12 +91,7 @@ def main():
     else:
         raise Exception("No dataset or query provided.")
 
-    # Load config and init wandb tracking
-    if args.default_config: # TODO : add default config for each method
-        with open(f'methods/TorchKGE/config/{args.method}.yaml', 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-    else:
-        config = vars(args)
+    config = vars(args)
 
     # wandb.config = {
     # "architecture": config['method'],
@@ -127,7 +124,7 @@ def main():
     if config['classifier']:
         src.classifier.train_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
 
-    if config['get_embeddings']:
+    if config['save_embeddings']:
         src.embeddings.get_embeddings(emb_model, dataset, config)
     
     # if config['get_scores']:
