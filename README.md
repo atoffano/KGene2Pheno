@@ -73,7 +73,7 @@ Here are a few examples of how to use the code:
 
 ### Querying a SPARQL endpoint:
 
-    python script.py --query "SPARQL query" --method "method_name" --dataset "dataset_name"
+    python main.py --query "SPARQL query" --method "method_name" --dataset "dataset_name"
 
 
 
