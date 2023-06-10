@@ -4,9 +4,7 @@ import os
 import sys
 import pandas as pd
 import yaml
-import wandb
-import torch
-from torch import cuda
+# import wandb
 
 import classifier
 import train
@@ -51,8 +49,7 @@ def main():
     
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
 
-    parser.add_argument('--classifier', nargs='*', required=False, default=False, help='train a classifier on the embeddings')
-    parser.add_argument('--get_embeddings', action='store_true', help='Compute embeddings for the given method')
+    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
 
     parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
     parser.add_argument('--save_data', action='store_true', help='whether to save the data splits')
@@ -70,7 +67,7 @@ def main():
         
     timestart = dt.now()
     print(f"Start time: {timestart}")
-
+        
     # Gather data, either from local file or SPAQL endpoint
     if args.query: # Query the SPARQL endpoint
         dataset = load_by_query(args.query)
@@ -99,37 +96,28 @@ def main():
     else:
         config = vars(args)
 
-    wandb.config = {
-    "architecture": config['method'],
-    "learning_rate": config['lr'],
-    "epochs": config['n_epochs'],
-    "batch_size": config['batch_size'],
-    "embedding_dim": config['ent_emb_dim'],
-    "loss": config['loss_fn'],
-    "dataset": config['dataset'],
-    "split_ratio": config['split_ratio'],
-    "margin": config['margin'],
-    "dissimilarity_type": config['dissimilarity_type'],
-    "rel_emb_dim": config['rel_emb_dim'],
-    "n_filters": config['n_filters'],
-    "scalar_share": config['scalar_share'],
-    }
+    # wandb.config = {
+    # "architecture": config['method'],
+    # "learning_rate": config['lr'],
+    # "epochs": config['n_epochs'],
+    # "batch_size": config['batch_size'],
+    # "embedding_dim": config['ent_emb_dim'],
+    # "loss": config['loss_fn'],
+    # "dataset": config['dataset'],
+    # "split_ratio": config['split_ratio'],
+    # "margin": config['margin'],
+    # "dissimilarity_type": config['dissimilarity_type'],
+    # "rel_emb_dim": config['rel_emb_dim'],
+    # "n_filters": config['n_filters'],
+    # "scalar_share": config['scalar_share'],
+    # }
 
-    wandb.login()
-    wandb.init(project="cigap-base", config=config)
-
-    # CUDA parameters
-    use_cuda = cuda.is_available()
-    if use_cuda:
-        device = torch.device('cuda')
-        cuda.empty_cache()
-    else:
-        device = torch.device('cpu')
-    print(f'Using device: {device}')
+    # wandb.login()
+    # wandb.init(project="cigap-base", config=config)
 
     # Train embedding model with the selected method
     if config['method'] and config['method'] in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        emb_model, kg_train, kg_test, timestart = train.train(config['method'], dataset, config, timestart, device)
+        emb_model, kg_train, kg_test= train.train(config['method'], dataset, config, timestart)
     else:
         raise Exception("Method not supported. Check spelling ?")
 
@@ -137,14 +125,22 @@ def main():
         os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
     if config['classifier']:
-        data_path = f'{current_dir}/models/{config["method"]}_{timestart}_kg_test.csv'
-        embeddings.generate(emb_model, kg_test, data_path, device)
-        classifier.binary_classifier(config['classifier'], data_path, timestart, save=config['save_model'])
+        classifier.binary_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
 
     if config['get_embeddings']:
-        pass
+        embeddings.get_embeddings(emb_model, dataset, config)
+    
+    if config['get_scores']:
+        get_scores(emb_model, dataset, config)
+        
+
+    
+def train_model(method, dataset, config, timestart):
+    '''Train an embedding model with the selected method'''
+
+    return emb_model, kg_train, kg_val, kg_test
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="2"
-    os.environ["WANDB_API_KEY"]="4e5748d6c6f3917c78cdc38a516a1bac776faf58"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    #os.environ["WANDB_API_KEY"]=""
     main()
