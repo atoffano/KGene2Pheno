@@ -6,7 +6,6 @@ from datetime import datetime as dt
 import pandas as pd
 from time import time
 
-
 def timer_func(func):
     # This function shows the execution time of the function object passed
     def wrap_func(*args, **kwargs):

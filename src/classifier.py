@@ -41,4 +41,8 @@ def train_classifier(model_type, data_path, timestart, save=False):
             save_model(model, f'binary_classif/{type}/{type}_model_{timestart}')
 
 if __name__ == '__main__':
-    pass
+    from datetime import datetime
+    model_type = ['lr', 'lightgbm', 'rf', 'et']
+    data_path = 'KGene2pheno/data/embeddings.csv'
+    timestart = datetime.datetime.now()
+    train_classifier(model_type, data_path, timestart, save=False)

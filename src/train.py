@@ -1,13 +1,12 @@
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime as dt
-import wandb
-
-import torch
+# import wandb
 
 # from ignite.engine import Engine, Events
 # from ignite.handlers import EarlyStopping
 # from ignite.metrics import RunningAverage
+import torch
 from torch.optim import Adam
 from torch import cuda
 
@@ -133,7 +132,7 @@ def train(method, dataset, config, timestart):
         case _:
             raise ValueError(f"Method {method} not supported.")
         
-    wandb.watch(emb_model, log="all")
+    # wandb.watch(emb_model, log="all")
 
     # Define the loss function, the dataloaders, the optimizer and the negative samplers
     # Add your own custom losses as another case
@@ -183,8 +182,8 @@ def train(method, dataset, config, timestart):
         
         validation_loss = val_loss(test_dataloader, test_sampler, emb_model, criterion, device) # Compute validation loss
         print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}, val loss: {validation_loss}')
-        wandb.log({'loss': running_loss / len(dataloader)})
-        wandb.log({'val_loss': validation_loss})
+        # wandb.log({'loss': running_loss / len(dataloader)})
+        # wandb.log({'val_loss': validation_loss})
 
         if config['normalize_parameters']: # Normalize embeddings after each epoch
             emb_model.normalize_parameters()
@@ -325,27 +324,5 @@ def evaluate_emb_model(emb_model, kg_eval, device):
     # wandb.log({'Mean Rank': evaluator.mean_rank()[0]})
     # wandb.log({'MRR': evaluator.mrr()[0]})
 
-def inference_from_checkpoint(emb_model_path, test_path, device):
-    emb_model = TransEModel(50,675845,10, dissimilarity_type='L1')
-    emb_model.load_state_dict(torch.load(emb_model_path))
-    emb_model.to(device)
-    kg_test = KnowledgeGraph(pd.read_csv(test_path))
-    evaluate_emb_model(emb_model, kg_test, device)
-
 if __name__ == '__main__':
-    # # Loads a model and the relevant test data, and run on a test set
-    # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_test.csv')
-    import os
-    os.chdir('/home/antoine/gene_pheno_pred')
-    os.environ["CUDA_VISIBLE_DEVICES"]="2"
-
-    # Move everything to CUDA if available
-    use_cuda = cuda.is_available()
-    if use_cuda:
-        device = torch.device('cuda')
-        cuda.empty_cache()
-    else:
-        device = torch.device('cpu')
-
-    inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766.pt', '/home/antoine/gene_pheno_pred/models/TransE_2023-05-04 17:19:26.570766_kg_train.csv', device)
-
+    pass

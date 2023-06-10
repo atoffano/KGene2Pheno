@@ -125,13 +125,13 @@ def main():
         os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
     if config['classifier']:
-        classifier.train_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
+        src.classifier.train_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
 
     if config['get_embeddings']:
-        embeddings.get_embeddings(emb_model, dataset, config)
+        src.embeddings.get_embeddings(emb_model, dataset, config)
     
-    if config['get_scores']:
-        get_scores(emb_model, dataset, config)
+    # if config['get_scores']:
+    #     get_scores(emb_model, dataset, config)
         
 
     
@@ -141,6 +141,6 @@ def train_model(method, dataset, config, timestart):
     return emb_model, kg_train, kg_val, kg_test
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     #os.environ["WANDB_API_KEY"]=""
     main()

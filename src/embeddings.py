@@ -12,9 +12,30 @@ from torchkge.utils import DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 
-from utils import timer_func
+from src.utils import timer_func
 
 def generate_emb(emb_model, batch, sampler, device):
+    """
+    Generate embeddings for a batch of samples using the trained embedding model.
+
+    Parameters
+    ----------
+    emb_model : torchkge.models.xxx
+        The trained embedding model.
+    batch : torch.tensor
+        A tensor containing the batch data (h_idx, t_idx, r_idx).
+    sampler : torchkge.sampling.NegativeSampler
+        The negative sampler used to generate negative samples.
+    device : torch.device
+        The device to perform the computation on.
+
+    Returns
+    -------
+    torch.tensor
+        A tensor containing the entity indices (h_idx, t_idx, n_h_idx, n_t_idx), 
+        true triple head and tail node embeddings (pos_x), corrupted triple head and tail node embeddings (neg_x), 
+        true triple relations (relation), and corrupted triple relations (neg_relation).
+    """
 
     # Generate positive samples
     h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
@@ -60,6 +81,25 @@ def generate_emb(emb_model, batch, sampler, device):
 
 @timer_func
 def generate(emb_model, dataset, data_path, device):
+    """
+    Generate embeddings for a dataset using the specified trained embedding model.
+
+    Parameters
+    ----------
+    emb_model : torchkge.models.xxx
+        The trained embedding model.
+    dataset : torchkge.data_structures.KnowledgeGraph
+        The dataset to generate embeddings for.
+    data_path : str
+        The file path to save the generated embeddings.
+    device : torch.device
+        The device to perform the computation on.
+
+    Returns
+    -------
+    None
+    """
+
     emb_model.to(device)
     dataloader = DataLoader(dataset, batch_size=512, use_cuda='None')
     sampler = BernoulliNegativeSampler(dataset)
@@ -99,29 +139,25 @@ def generate(emb_model, dataset, data_path, device):
     df.to_csv(data_path, index=False)
     
 if __name__ == '__main__':
-    # # Loads a model and the relevant test data, and run on a test set
-    # inference_from_checkpoint('/home/antoine/gene_pheno_pred/models/TorchKGE/TransH_2023-03-13 17:08:16.530738.pt', '/home/antoine/gene_pheno_pred/emb_models/TorchKGE/TransH_2023-03-13 17:08:16.530738_kg_val.csv')
+    # # Loads a model and triple data, before exporting the pair of head and tail node embeddings as csv
     import os
-    os.chdir('/home/antoine/gene_pheno_pred')
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.chdir('KGene2pheno')
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-    # # Dataset loading
+    # Model and dataset parameters
+    datapath = '' # Path to the dataset in .n3 format
+    emb_model = ComplExModel(emb_dim=50, n_entities=99699, n_relations=9) # Arguments vary depending on the model. Refer to torchkge documentation for specifics
+    model_path = '' # Path to the .pt model
+    save_path = '' # Path to save the embeddings
+
+    # Dataset loading
     print("Loading train dataset..")
-    df = pd.read_csv('/home/antoine/gene_pheno_pred/models/non-reified_ComplEx_2023-05-05 17:04:52.671826_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    kg_train = KnowledgeGraph(df)
-
-    # print("Loading val dataset..")
-    # df = pd.read_csv('/home/antoine/gene_pheno_pred/models/ComplEx_2023-05-27 20:08:45.227169_kg_train.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    # kg_val = KnowledgeGraph(df)
-
-    # print("Loading test dataset..")
-    # df = pd.read_csv('/home/antoine/gene_pheno_pred/models/ComplEx_2023-05-27 20:08:45.227169_kg_test.csv', skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
-    # kg_test = KnowledgeGraph(df)
+    df = pd.read_csv(datapath, skiprows=[0], usecols=[1, 2, 3], header=None, names=['from', 'to', 'rel'])
+    kg = KnowledgeGraph(df)
     
     # Model loading
     print("Loading model..")
-    emb_model = ComplExModel(emb_dim=50, n_entities=99699, n_relations=9)
-    emb_model.load_state_dict(torch.load('/home/antoine/gene_pheno_pred/models/non-reified_ComplEx_2023-05-05 17:04:52.671826.pt'))
+    emb_model.load_state_dict(torch.load(model_path))
 
     # Move everything to CUDA if available
     use_cuda = cuda.is_available()
@@ -132,5 +168,4 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    # for name, dataset in zip(['train', 'test'], [kg_train, kg_test]):
-    generate(emb_model, kg_train, data_path=f'/home/antoine/gene_pheno_pred/non-reified_ComplEx_2023-05-05 17:04:52.671826_kg_train.csv', device=device)
+    generate(emb_model, kg, save_path, device=device)
