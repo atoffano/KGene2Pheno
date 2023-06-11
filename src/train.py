@@ -1,6 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime as dt
+import os
 # import wandb
 
 # from ignite.engine import Engine, Events
@@ -17,10 +18,10 @@ from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, Dat
 from torchkge.data_structures import KnowledgeGraph
 from sklearn.metrics import confusion_matrix
 
-from utils import timer_func
+from src.utils import timer_func
 
 @timer_func
-def train(method, dataset, config, timestart):
+def train(method, dataset, config, timestart, logger, device):
     """
     Train the embedding model using the specified method and dataset.
 
@@ -45,38 +46,29 @@ def train(method, dataset, config, timestart):
         The test knowledge graph.
     """
 
-    # Move everything to CUDA if available
-    use_cuda = cuda.is_available()
-    if use_cuda:
-        device = torch.device('cuda')
-        cuda.empty_cache()
-        emb_model.to(device)
-    else:
-        device = torch.device('cpu')
-
     # Dataset loading and splitting
     df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
     kg = KnowledgeGraph(df) # Create a knowledge graph from the dataframe
 
-    print('Splitting knowledge graph..')
+    logger.info('Splitting knowledge graph..')
     kg_train, kg_test = split(kg, split_ratio=config['split_ratio'], validation=False) 
 
     if kg.n_ent != kg_train.n_ent:
         raise ValueError('Some entities are not present in the training set. \n \
                          All entities should be seen during training, else the model will not be able to generate an embedding for unseen entities.')
-    # Print number of entities and relations in each set:
-    print(f'\n Train set')
-    print(f'Number of entities: {kg_train.n_ent}')
-    print(f'Number of relations: {kg_train.n_rel}')
-    print(f'Number of triples: {kg_train.n_facts}')
+    # logger.info number of entities and relations in each set:
+    logger.info(f'\n Train set')
+    logger.info(f'Number of entities: {kg_train.n_ent}')
+    logger.info(f'Number of relations: {kg_train.n_rel}')
+    logger.info(f'Number of triples: {kg_train.n_facts}')
 
-    print(f'\n Test set')
-    print(f'Number of entities: {kg_train.n_ent}')
-    print(f'Number of relations: {kg_train.n_rel}')
-    print(f'Number of triples: {kg_train.n_facts}')
+    logger.info(f'\n Test set')
+    logger.info(f'Number of entities: {kg_train.n_ent}')
+    logger.info(f'Number of relations: {kg_train.n_rel}')
+    logger.info(f'Number of triples: {kg_train.n_facts}')
     
     if kg_train.rel2ix != kg_test.rel2ix:
-        print('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
+        logger.info('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
               This is usually due to a relation not being present in the validation or test set. \n \
               It usually boils down to one directed relation type leading to an unconnected node. A classical example is the "label" relation.')
 
@@ -109,7 +101,7 @@ def train(method, dataset, config, timestart):
                     # Train a TransE model to initialize the embeddings.
                     # Config will be the same as the one used for ConvKB unless a path is specified as arg.
                     init_model, _, _, _ = train('TransE', dataset, config, timestart)
-                    print('TransE model trained.')
+                    logger.info('TransE model trained.')
 
                 else:
                     # Load a pretrained TransE model
@@ -120,14 +112,14 @@ def train(method, dataset, config, timestart):
                         raise ValueError(f"init_transe should have the following args: path, emb_dim, dissimilarity_type or a boolean.")
                     init_model = TransEModel(emb_dim=emb_dim, n_entities=kg_train.n_ent, n_relations=kg_train.n_rel, dissimilarity_type=dissimilarity_type)
                     init_model.load_state_dict(torch.load(path))
-                    print(f'TransE model loaded from {path}')
+                    logger.info(f'TransE model loaded from {path}')
 
                 # Initialize the ConvKB model's weights with the TransE embeddings
                 ent_emb, rel_emb = init_model.get_embeddings()
                 emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
                 emb_model.ent_emb.weight.data = ent_emb
                 emb_model.rel_emb.weight.data = rel_emb
-                print('ConvKB model initialized with TransE embeddings.')
+                logger.info('ConvKB model initialized with TransE embeddings.')
 
         case _:
             raise ValueError(f"Method {method} not supported.")
@@ -158,9 +150,9 @@ def train(method, dataset, config, timestart):
     criterion.to(device)
 
     # Log parameters
-    print(f'\n{dt.now()} - PARAMETERS')
+    logger.info(f'\n{dt.now()} - PARAMETERS')
     for i in config.items():
-        print(f'\t {i[0]} : {i[1]}' )
+        logger.info(f'\t {i[0]} : {i[1]}' )
 
     # Training loop
     iterator = tqdm(range(config['n_epochs']), unit='epoch')
@@ -181,16 +173,19 @@ def train(method, dataset, config, timestart):
             running_loss += loss.item()
         
         validation_loss = val_loss(test_dataloader, test_sampler, emb_model, criterion, device) # Compute validation loss
-        print(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}, val loss: {validation_loss}')
+        logger.info(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}, val loss: {validation_loss}')
         # wandb.log({'loss': running_loss / len(dataloader)})
         # wandb.log({'val_loss': validation_loss})
 
         if config['normalize_parameters']: # Normalize embeddings after each epoch
             emb_model.normalize_parameters()
 
-    print(f'{dt.now()} - Finished Training !')
+    logger.info(f'{dt.now()} - Finished Training !')
 
     # Save the model and/or the data
+    if os.path.exists('models') == False:
+        os.mkdir('models')
+
     if config['save_model']:
         torch.save(emb_model.state_dict(), f'models/{method}_{timestart}.pt')
     if config['save_data']:
@@ -198,8 +193,8 @@ def train(method, dataset, config, timestart):
         kg_test.get_df().to_csv(f'models/{method}_{timestart}_kg_test.csv')
 
     # Evaluate the model on a relation prediction task to get performance (Hit@k, MRR)
-    evaluate_emb_model(emb_model, kg_test, device)
-    return emb_model, kg_train, kg_test, timestart
+    evaluate_emb_model(emb_model, kg_test, device, logger=logger)
+    return emb_model, kg_train, kg_test
 
 @timer_func
 def split(kg, split_ratio=0.8, validation=False):
@@ -238,7 +233,7 @@ def val_loss(dataloader, sampler, emb_model, criterion, device='cpu'):
             running_loss += loss.item()
     return running_loss / len(dataloader)
 
-def evaluate_emb_model(emb_model, kg_eval, device):
+def evaluate_emb_model(emb_model, kg_eval, device, logger):
     """
     Evaluate the trained embedding model on a knowledge graph.
 
@@ -254,7 +249,7 @@ def evaluate_emb_model(emb_model, kg_eval, device):
     None
     """
         
-    print(f'{dt.now()} - Evaluating..')
+    logger.info(f'{dt.now()} - Evaluating..')
 
     evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
     # evaluator.evaluate(b_size=64, verbose=True)
@@ -305,17 +300,17 @@ def evaluate_emb_model(emb_model, kg_eval, device):
 
 
     # Compute the confusion matrix for the relation prediction task
-    print(kg_eval.rel2ix)
+    logger.info(kg_eval.rel2ix)
     # Convert tensors to numpy arrays
     all_scores_np = all_scores.cpu().numpy()
     all_true_ranks_np = all_true_ranks.cpu().numpy()
     cm = confusion_matrix(all_true_ranks_np, all_scores_np)
 
-    # Print the confusion matrix
-    print(cm)
+    # logger.info the confusion matrix
+    logger.info(cm)
 
     # Log results to logfile
-    print(f'{dt.now()} - Results:')
+    logger.info(f'{dt.now()} - Results:')
     evaluator.print_results(k=[i for i in range(1, 11)])
 
     # Log results to wandb

@@ -2,7 +2,7 @@ from pycaret.classification import *
 import pandas as pd
 import os
 
-def train_classifier(model_type, data_path, timestart, save=False):
+def train_classifier(model_type, data, timestart, logger, device, save=False):
     """
     Train binary classification models on the provided data.
 
@@ -19,21 +19,19 @@ def train_classifier(model_type, data_path, timestart, save=False):
         Flag indicating whether to save the trained models (default is False).
     """
 
-    print(f'Model types: {model_type}')
-    print(f'Data path: {data_path}')
+    logger.info(f'Model types: {model_type}')
     
     # Load data
-    data = pd.read_csv(data_path, header=0)
     data['link'] = data['relation'].apply(lambda x: 1 if x != 'no_link_known' else 0) # Convert relations to binary label
     data = data.drop(['head', 'relation', 'tail'], axis=1)
 
     # Experiment setup
-    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=True, use_gpu = True)
+    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=True, use_gpu=True if device == 'cuda' else False)
     exp = ClassificationExperiment()
 
     # Model training
     for type in model_type:
-        print(f'Model - {type} : \n {model}')
+        logger.info(f'Model - {type}')
         model = create_model(type) # Train the classifier
 
         if save == True:

@@ -4,6 +4,9 @@ import sys
 import pandas as pd
 import yaml
 # import wandb
+import logging
+import torch
+from torch import cuda
 
 from src.utils import *
 import src.classifier
@@ -25,7 +28,7 @@ def main():
 
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
 
-    parser.add_argument('--train_classifier', action='store_true', help='train a classifier on the embeddings')
+    parser.add_argument('--train_classifier', nargs='*', help='train a classifier on the embeddings')
 
     parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
     parser.add_argument('--save_data', action='store_true', help='whether to save the data split')
@@ -55,9 +58,8 @@ def main():
     # ANALOGY
     parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')
     
-
-    
     args = parser.parse_args()
+    config = vars(args)
 
     # Change directory to the current file path
     current_file_path = os.path.realpath(__file__)
@@ -68,8 +70,41 @@ def main():
         os.remove("query_result.txt")
         
     timestart = dt.now() # Start time
-    print(f"Start time: {timestart}")
+
         
+    # Create a logger
+    if os.path.exists("logs") == False:
+        os.mkdir("logs")
+    logging.basicConfig(filename=f'logs/{timestart}_{config["method"]}_{config["dataset"]}.log',
+                        level=logging.INFO,
+                        format='%(asctime)s %(levelname)s: %(message)s')
+    logger = logging.getLogger()
+
+    # Create a handler for console output
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    # Create a formatter and add it to the console handler
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+    console_handler.setFormatter(formatter)
+
+    # Add the console handler to the logger
+    logger.addHandler(console_handler)
+
+
+    # Logging example
+    logger.info(f"Start time: {timestart}")
+
+
+    # Set device
+    use_cuda = cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+        cuda.empty_cache()
+    else:
+        device = torch.device('cpu')
+
+
     # Gather data, either from local file or SPAQL endpoint
     if args.query: # Query the SPARQL endpoint
         dataset = load_by_query(args.query)
@@ -78,10 +113,10 @@ def main():
         match args.dataset:
             case "celegans":
                 dataset = load_celegans(args.keywords, sep=' ')
-            case "local_celegans": # Celegans dataset from local file (to avoid sparql interaction)
-                dataset = "local_celegans.txt"
+            case "local": # Celegans dataset from local file (to avoid sparql interaction)
+                dataset = "data/raw/local.txt"
             case "toy-example": # Debug dataset
-                dataset = "toy-example.txt"
+                dataset = "data/raw/toy-example.txt"
             case _:
                 raise Exception("Dataset not supported.")
     
@@ -91,7 +126,6 @@ def main():
     else:
         raise Exception("No dataset or query provided.")
 
-    config = vars(args)
 
     # wandb.config = {
     # "architecture": config['method'],
@@ -114,28 +148,30 @@ def main():
 
     # Train embedding model with the selected method
     if config['method'] and config['method'] in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
-        emb_model, kg_train, kg_test= train.train(config['method'], dataset, config, timestart)
+        emb_model, kg_train, kg_test= src.train.train(config['method'], dataset, config, timestart, logger, device)
+        logger.info("Training of Embedding Model done !")
     else:
         raise Exception("Method not supported. Check spelling ?")
 
-    if dataset not in ['toy-example.txt', 'local_celegans.txt']:
+    if dataset not in ['data/raw/local.txt', 'data/raw/toy-example.txt']:
         os.remove(dataset) # Don't keep the dataset file if it was downloaded from the SPARQL endpoint
 
-    if config['classifier']:
-        src.classifier.train_classifier(emb_model, kg_train, kg_test, timestart, save_model=config['save_model'])
+    if config['train_classifier']:
+        logger.info("Converting test set to embeddings...")
+        data = src.embeddings.generate(emb_model, kg_test, config, timestart, device)
+        logger.info("Test set converted. It will be used to train the classifier")
+        logger.info("Training classifier...")
+        src.classifier.train_classifier(config['train_classifier'], data, timestart, logger=logger, device=device, save=config['save_model'])
+        logger.info("Classifier trained !")
 
     if config['save_embeddings']:
-        src.embeddings.get_embeddings(emb_model, dataset, config)
+        for kg, name in zip([kg_train, kg_test], ["train", "test"]):
+            kg = src.embeddings.generate(emb_model, kg, config, device)
+            kg.to_csv(f"data/embeddings/{config['method']}_{config['dataset']}_{name}_embeddings.csv", index=False)
     
     # if config['get_scores']:
     #     get_scores(emb_model, dataset, config)
         
-
-    
-def train_model(method, dataset, config, timestart):
-    '''Train an embedding model with the selected method'''
-
-    return emb_model, kg_train, kg_val, kg_test
 
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"]="0"

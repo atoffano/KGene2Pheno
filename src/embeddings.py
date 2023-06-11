@@ -80,9 +80,10 @@ def generate_emb(emb_model, batch, sampler, device):
     return ent_idxs, pos_x, neg_x, relation, neg_relation
 
 @timer_func
-def generate(emb_model, dataset, data_path, device):
+def generate(emb_model, dataset, config, timestart, device):
     """
-    Generate embeddings for a dataset using the specified trained embedding model.
+    Generate a dataset containing embeddings of both head and tail node, to be used by the classifier using the specified trained embedding model.
+    This creates a pd.DataFrame with the following layout: [embedding_head, embedding_tail, head_str, relation_str, tail_str]
 
     Parameters
     ----------
@@ -90,14 +91,14 @@ def generate(emb_model, dataset, data_path, device):
         The trained embedding model.
     dataset : torchkge.data_structures.KnowledgeGraph
         The dataset to generate embeddings for.
-    data_path : str
-        The file path to save the generated embeddings.
+    config : bool
+        CLI arguments.
     device : torch.device
         The device to perform the computation on.
 
     Returns
     -------
-    None
+    pd.DataFrame
     """
 
     emb_model.to(device)
@@ -136,7 +137,11 @@ def generate(emb_model, dataset, data_path, device):
 
     #shuffle df rows randomly
     df = df.sample(frac=1).reset_index(drop=True)
-    df.to_csv(data_path, index=False)
+
+    if config['save_data'] == True:
+        df.to_csv(f'data/embeddings/{timestart}_{config["method"]}', index=False)
+
+    return df
     
 if __name__ == '__main__':
     # # Loads a model and triple data, before exporting the pair of head and tail node embeddings as csv
