@@ -21,10 +21,7 @@ def main():
     parser.add_argument('--keywords', nargs='*', default=None, help='Multiple keywords')
     parser.add_argument('--method', required=True, help='Name of the method')
     parser.add_argument('--dataset', required=True, help='Name of the dataset')
-
     parser.add_argument('--query', default=None, help='A SPARQL query')
-    parser.add_argument('--data_format', default=None, help='Format of the dataset')
-    parser.add_argument('--ouput', default='./', help='Directory to store the data')
 
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
 
@@ -35,7 +32,6 @@ def main():
     parser.add_argument('--save_embeddings', action='store_true', help='whether to save the embeddings as csv')
 
     # Add torchkge arguments
-    parser.add_argument('--default_config', action='store_true', help='Use the default config file for the given method.')
 
     parser.add_argument('--n_epochs', required=False, default=20, type=int, help='Number of epochs')
     parser.add_argument('--batch_size', required=False, default=128, type=int, help='Batch size')
@@ -54,9 +50,6 @@ def main():
     # ConvKB
     parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of filters (ConvKB)')
     parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to initialize ConvKB with transe embeddings')
-
-    # ANALOGY
-    parser.add_argument('--scalar_share', required=False, default=0.5, type=float, help='Share of the diagonal elements of the relation-specific matrices to be scalars. By default it is set to 0.5 according to the original paper..')
     
     args = parser.parse_args()
     config = vars(args)

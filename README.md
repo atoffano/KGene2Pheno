@@ -33,8 +33,6 @@ To use the code, follow these steps:
 
 Clone the repository or download the code files to your local machine.
 
-Open a terminal or command prompt and navigate to the directory where the code files are located.
-
 Run the script using the following command:
 
     python main.py [arguments]
@@ -43,29 +41,38 @@ Replace main.py with the name of the script file containing the code.
 
 Specify the required command-line arguments to customize the behavior of the script. The available arguments are:
 
-    --keywords: Specify multiple keywords (optional).
-    --method: Name of the method (required).
-    --dataset: Name of the dataset (required).
-    --query: A SPARQL query (optional).
-    --data_format: Format of the dataset (optional).
-    --output: Directory to store the data (optional).
+    --keywords: Specify multiple keywords to generate the dataset(optional). 
+    Currently available: disease gene phenotype not-phenotype interaction disease_plus_ortho expression_value expression_pattern lifestage-ontology disease-ontology phenotype-ontology go-ontology go-annotation
+    --method: Name of the method (required). One of TransE, TorusE, ComplEx, ConvKB.
+    --dataset: Used to specify local datasets. See 'Using a local dataset' for more information.
+    --query: A SPARQL query (optional). Used to retrieve data from a query instead of using keywords.
+    --normalize_parameters: Whether to normalize entity embeddings (optional). Defaults to False.
+    --train_classifier: Train a classifier on the generated embeddings (optional). Specify the names of the classifiers to use as n arguments. See the PyCaret documentation for all available classifiers.
+    --save_model: Whether to save the model weights (optional). Defaults to False.
+    --save_data: Whether to save the data split (optional). Defaults to False.
+    --save_embeddings: Whether to save the embeddings as csv (optional). Defaults to False.
+    --n_epochs: Number of epochs (optional). Defaults to 20.
+    --batch_size: Batch size (optional). Defaults to 128.
+    --lr: Learning rate (optional). Defaults to 0.0001.
+    --weight_decay: Weight decay (optional). Defaults to 0.0001.
+    --loss_fn: Loss function. One of margin, bce, logistic (optional). Defaults to margin.
+    --ent_emb_dim: Size of entity embeddings (optional). Defaults to 50.
+    --split_ratio: Train/test ratio (optional). Defaults to 0.8.
+    --dissimilarity_type: Either L1 or L2, representing the type of dissimilarity measure to use (optional). Defaults to L1. When using torus, replace L1 and L2 with torus_L1 and torus_L2, respectively.
+    --margin: Margin value (optional). Defaults to 1.
+    --rel_emb_dim: Size of entity embeddings (optional). Defaults to 50.
+    --n_filters: Number of filters (ConvKB) (optional). Defaults to 10.
+    --init_transe: Whether to initialize ConvKB with transe embeddings (optional). Defaults to True.
 
 Note: Arguments marked as (required) are mandatory and must be provided.
 
 The script will start executing the main function main(). It performs the following steps:
 
-    Parses the command-line arguments provided.
-    Changes the current working directory to the directory containing the script.
-    Removes a file named "query_result.txt" if it exists.
     Retrieves or generates the dataset based on the specified dataset or query.
-    Loads the configuration and initializes Weights & Biases (wandb) tracking.
     Trains an embedding model using the selected method.
-    Removes the dataset file if it was downloaded from a SPARQL endpoint.
-    Performs additional actions based on the configuration.
+    Trains a binary classifier using the generated embeddings.
 
-The script will print the start time and continue executing until completion.
-
-Once the script finishes, you can analyze the results or perform any desired actions based on the configuration and the executed method.
+All logs are saved in the logs folder. Models are saved in the models folder. Embeddings are saved in  data/embeddings.
 
 ## Examples
 
@@ -73,19 +80,27 @@ Here are a few examples of how to use the code:
 
 ### Querying a SPARQL endpoint:
 
-    python main.py --query "SPARQL query" --method "method_name" --dataset "dataset_name"
+    python main.py --query "SPARQL query" --method "method_name"
 
-
-
-### Using a local dataset:
-
-python main.py --dataset "local_celegans" --method "method_name"
 
 Training an embedding model with default configuration:
 
-    python main.py --method "TransE" --dataset "celegans" --default_config
+    python main.py --method "TransE" --keywords disease gene phenotype not-phenotype interaction disease_plus_ortho expression_value expression_pattern lifestage-ontology disease-ontology phenotype-ontology go-ontology go-annotation
 
 Note: Replace "main.py" with the actual name of the script file, and replace "SPARQL query," "method_name," and "dataset_name" with your own values.
-Additional Information
 
-For more information on the code and its functionality, refer to the comments within the code file and consult the documentation provided, if available.
+### Using a local dataset:
+
+python main.py --dataset "local" --method "method_name"
+
+This will use the dataset stored in the data folder. The dataset must be in the form of a space separated file with the following columns:
+
+    head: The head of the triple.
+    relation: The relation of the triple.
+    tail: The tail of the triple.
+No index or header is required.
+
+
+## Additional Information
+
+For more information on the code and its functionality, refer to the comments within the code file for now. A full documentation will be provided in the future.
