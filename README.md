@@ -37,9 +37,9 @@ Open a terminal or command prompt and navigate to the directory where the code f
 
 Run the script using the following command:
 
-    python <script_name>.py [arguments]
+    python main.py [arguments]
 
-Replace <script_name>.py with the name of the script file containing the code.
+Replace main.py with the name of the script file containing the code.
 
 Specify the required command-line arguments to customize the behavior of the script. The available arguments are:
 
@@ -73,19 +73,19 @@ Here are a few examples of how to use the code:
 
 ### Querying a SPARQL endpoint:
 
-    python script.py --query "SPARQL query" --method "method_name" --dataset "dataset_name"
+    python main.py --query "SPARQL query" --method "method_name" --dataset "dataset_name"
 
 
 
 ### Using a local dataset:
 
-python script.py --dataset "local_celegans" --method "method_name"
+python main.py --dataset "local_celegans" --method "method_name"
 
 Training an embedding model with default configuration:
 
-    python script.py --method "TransE" --dataset "celegans" --default_config
+    python main.py --method "TransE" --dataset "celegans" --default_config
 
-Note: Replace "script.py" with the actual name of the script file, and replace "SPARQL query," "method_name," and "dataset_name" with your own values.
+Note: Replace "main.py" with the actual name of the script file, and replace "SPARQL query," "method_name," and "dataset_name" with your own values.
 Additional Information
 
 For more information on the code and its functionality, refer to the comments within the code file and consult the documentation provided, if available.
