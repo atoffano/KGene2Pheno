@@ -91,7 +91,7 @@ Note: Replace "main.py" with the actual name of the script file, and replace "SP
 
 ### Using a local dataset:
 
-python main.py --dataset "local" --method "method_name"
+	python main.py --dataset "local" --method "method_name"
 
 This will use the dataset stored in the data folder. The dataset must be in the form of a space separated file with the following columns:
 
