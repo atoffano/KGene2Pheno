@@ -26,13 +26,17 @@ def train_classifier(model_type, data, timestart, logger, device, save=False):
     data = data.drop(['head', 'relation', 'tail'], axis=1)
 
     # Experiment setup
-    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=True, use_gpu=True if device == 'cuda' else False)
+
+    logger.info(f'Experiment Setup:')
+    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=False, use_gpu=True if device == 'cuda' else False)
     exp = ClassificationExperiment()
 
     # Model training
     for type in model_type:
-        logger.info(f'Model - {type}')
-        model = create_model(type) # Train the classifier
+        logger.info(f'MODEL - {type}')
+        model = create_model(type, verbose=False) # Train the classifier
+        logger.info(f'CONFIG -\n {model}')
+        logger.info(f'RESULTS -\n{pull()}')
 
         if save == True:
             os.makedirs(f'binary_classif/{type}', exist_ok=True)

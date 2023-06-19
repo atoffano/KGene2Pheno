@@ -19,7 +19,7 @@ def timer_func(func):
 
 @timer_func
 def load_celegans(keywords, sep):
-    print(f'{dt.now()} - Querying celegans dataset with the following features : {keywords}.')
+    print(f'{dt.now()} - Querying celegans SPARQL endpoint with the following queries : {keywords}.')
     queries = queries_from_features(keywords)
     query_db(queries, sep)
     return 'query_result.txt'

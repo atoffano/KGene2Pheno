@@ -63,9 +63,9 @@ def train(method, dataset, config, timestart, logger, device):
     logger.info(f'Number of triples: {kg_train.n_facts}')
 
     logger.info(f'\n Test set')
-    logger.info(f'Number of entities: {kg_train.n_ent}')
-    logger.info(f'Number of relations: {kg_train.n_rel}')
-    logger.info(f'Number of triples: {kg_train.n_facts}')
+    logger.info(f'Number of entities: {kg_test.n_ent}')
+    logger.info(f'Number of relations: {kg_test.n_rel}')
+    logger.info(f'Number of triples: {kg_test.n_facts}')
     
     if kg_train.rel2ix != kg_test.rel2ix:
         logger.info('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
@@ -192,8 +192,8 @@ def train(method, dataset, config, timestart, logger, device):
         kg_train.get_df().to_csv(f'models/{method}_{timestart}_kg_train.csv')
         kg_test.get_df().to_csv(f'models/{method}_{timestart}_kg_test.csv')
 
-    # Evaluate the model on a relation prediction task to get performance (Hit@k, MRR)
-    evaluate_emb_model(emb_model, kg_test, device, logger=logger)
+    # Evaluate the model on a task to get performance (Hit@k, MRR)
+    evaluate_emb_model(emb_model, kg_test, config["eval_task"], device, logger=logger)
     return emb_model, kg_train, kg_test
 
 @timer_func
@@ -233,7 +233,7 @@ def val_loss(dataloader, sampler, emb_model, criterion, device='cpu'):
             running_loss += loss.item()
     return running_loss / len(dataloader)
 
-def evaluate_emb_model(emb_model, kg_eval, device, logger):
+def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
     """
     Evaluate the trained embedding model on a knowledge graph.
 
@@ -250,68 +250,81 @@ def evaluate_emb_model(emb_model, kg_eval, device, logger):
     """
         
     logger.info(f'{dt.now()} - Evaluating..')
+    b_size = 264 # Lower batch size if OOM error during evaluation
 
-    evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
-    # evaluator.evaluate(b_size=64, verbose=True)
+    match task:
+        case 'link-prediction':
+            evaluator = LinkPredictionEvaluator(emb_model, kg_eval)
+            evaluator.evaluate(b_size=b_size, verbose=True)
 
-    b_size = 64
-    use_cuda = next(evaluator.model.parameters()).is_cuda
+        case 'triple-classification':
+            evaluator = TripleClassificationEvaluator(emb_model, kg_eval)
+            evaluator.evaluate(b_size=b_size, verbose=True)
 
-    if use_cuda:
-        dataloader = DataLoader(evaluator.kg, batch_size=b_size, use_cuda='batch')
-        evaluator.rank_true_rels = evaluator.rank_true_rels.cuda()
-        evaluator.filt_rank_true_rels = evaluator.filt_rank_true_rels.cuda()
-    else:
-        dataloader = DataLoader(evaluator.kg, batch_size=b_size)
+        case 'relation-prediction':
+            evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
 
-    all_scores, all_true_ranks = torch.tensor([]).to(device), torch.tensor([]).to(device)
-    for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
-                            unit='batch', disable=(not True),
-                            desc='Relation prediction evaluation'):
-        h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-        h_emb, t_emb, r_emb, candidates = evaluator.model.inference_prepare_candidates(h_idx, t_idx, r_idx, entities=False)
+            use_cuda = next(evaluator.model.parameters()).is_cuda
 
-        scores = evaluator.model.inference_scoring_function(h_emb, t_emb, candidates)
-        filt_scores = filter_scores(scores, evaluator.kg.dict_of_rels, h_idx, t_idx, r_idx)
+            if use_cuda:
+                dataloader = DataLoader(evaluator.kg, batch_size=b_size, use_cuda='batch')
+                evaluator.rank_true_rels = evaluator.rank_true_rels.cuda()
+                evaluator.filt_rank_true_rels = evaluator.filt_rank_true_rels.cuda()
+            else:
+                dataloader = DataLoader(evaluator.kg, batch_size=b_size)
 
-        if not evaluator.directed:
-            scores_bis = evaluator.model.inference_scoring_function(t_emb, h_emb, candidates)
-            filt_scores_bis = filter_scores(scores_bis, evaluator.kg.dict_of_rels, h_idx, t_idx, r_idx)
+            all_scores, all_true_ranks = torch.tensor([]).to(device), torch.tensor([]).to(device)
+            for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
+                                    unit='batch', disable=(not True),
+                                    desc='Relation prediction evaluation'):
+                h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
+                h_emb, t_emb, r_emb, candidates = evaluator.model.inference_prepare_candidates(h_idx, t_idx, r_idx, entities=False)
 
-            scores = cat((scores, scores_bis), dim=1)
-            filt_scores = cat((filt_scores, filt_scores_bis), dim=1)
+                scores = evaluator.model.inference_scoring_function(h_emb, t_emb, candidates)
+                filt_scores = filter_scores(scores, evaluator.kg.dict_of_rels, h_idx, t_idx, r_idx)
 
-        true_data = scores.gather(1, r_idx.long().view(-1, 1))
-        
-        ranks = (scores >= true_data).sum(dim=1).detach()
-        evaluator.rank_true_rels[i * b_size: (i + 1) * b_size] = ranks
-        evaluator.filt_rank_true_rels[i * b_size: (i + 1) * b_size] = (filt_scores >= true_data).sum(dim=1).detach()
+                if not evaluator.directed:
+                    scores_bis = evaluator.model.inference_scoring_function(t_emb, h_emb, candidates)
+                    filt_scores_bis = filter_scores(scores_bis, evaluator.kg.dict_of_rels, h_idx, t_idx, r_idx)
 
-        ranks = (scores >= true_data).sum(dim=1).detach()
-        max_scores = torch.argmax(scores, dim=1)
-        all_scores = torch.cat((all_scores, max_scores), dim=0)
-        all_true_ranks = torch.cat((all_true_ranks, ranks), dim=0)
+                    scores = cat((scores, scores_bis), dim=1)
+                    filt_scores = cat((filt_scores, filt_scores_bis), dim=1)
 
-    evaluator.evaluated = True
+                true_data = scores.gather(1, r_idx.long().view(-1, 1))
+                
+                ranks = (scores >= true_data).sum(dim=1).detach()
+                evaluator.rank_true_rels[i * b_size: (i + 1) * b_size] = ranks
+                evaluator.filt_rank_true_rels[i * b_size: (i + 1) * b_size] = (filt_scores >= true_data).sum(dim=1).detach()
 
-    if use_cuda:
-        evaluator.rank_true_rels = evaluator.rank_true_rels.cpu()
-        evaluator.filt_rank_true_rels = evaluator.filt_rank_true_rels.cpu()
+                ranks = (scores >= true_data).sum(dim=1).detach()
+                max_scores = torch.argmax(scores, dim=1)
+                all_scores = torch.cat((all_scores, max_scores), dim=0)
+                all_true_ranks = torch.cat((all_true_ranks, ranks), dim=0)
+
+            evaluator.evaluated = True
+
+            if use_cuda:
+                evaluator.rank_true_rels = evaluator.rank_true_rels.cpu()
+                evaluator.filt_rank_true_rels = evaluator.filt_rank_true_rels.cpu()
 
 
-    # Compute the confusion matrix for the relation prediction task
-    logger.info(kg_eval.rel2ix)
-    # Convert tensors to numpy arrays
-    all_scores_np = all_scores.cpu().numpy()
-    all_true_ranks_np = all_true_ranks.cpu().numpy()
-    cm = confusion_matrix(all_true_ranks_np, all_scores_np)
+            # Compute the confusion matrix for the relation prediction task
+            logger.info(kg_eval.rel2ix)
+            # Convert tensors to numpy arrays
+            all_scores_np = all_scores.cpu().numpy()
+            all_true_ranks_np = all_true_ranks.cpu().numpy()
+            cm = confusion_matrix(all_true_ranks_np, all_scores_np)
 
-    # logger.info the confusion matrix
-    logger.info(cm)
+            # logger.info the confusion matrix
+            logger.info('\n' + cm)
 
     # Log results to logfile
-    logger.info(f'{dt.now()} - Results:')
-    evaluator.print_results(k=[i for i in range(1, 11)])
+    logger.info(f'{dt.now()} - EMBEDDING MODEL EVALUATION RESULTS:')
+    logger.info(f'Task : {task}')
+    for k in [1, 3, 5, 10]:
+        logger.info(f'Hit@{k} : {evaluator.hit_at_k(k)[0]}')
+    logger.info(f'Mean Rank : {evaluator.mean_rank()[0]}')
+    logger.info(f'MRR : {evaluator.mrr()[0]}')
 
     # Log results to wandb
     # for k in range(1, 11):
