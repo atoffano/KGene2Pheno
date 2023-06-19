@@ -1,0 +1,9 @@
+CONSTRUCT {
+?node1 rdfs:subClassOf ?node2 .
+}
+WHERE {
+?node1 rdfs:subClassOf ?node2 .
+FILTER REGEX( STR(?node1), "https://wormbase.org/search/life_stage")
+FILTER REGEX( STR(?node2), "https://wormbase.org/search/life_stage")
+}
+            

@@ -1,0 +1,12 @@
+CONSTRUCT {
+    ?wbpheno nt:001 ?geneid .
+    ?wbpheno ?rel ?pheno .
+}
+WHERE {
+    ?wbpheno nt:001 ?geneid .
+    ?wbpheno ?rel ?pheno .
+    FILTER(?rel = sio:000281)
+    ?wbpheno sio:000772 ?eco .
+    FILTER (REGEX(STR(?pheno), "^" + STR(wbpheno:))) 
+}
+            

@@ -1,0 +1,9 @@
+CONSTRUCT {
+?disease rdfs:subClassOf ?disease2 .
+}
+WHERE {
+?disease rdfs:subClassOf ?disease2 .
+FILTER REGEX( STR(?disease), "id=DOID:")
+FILTER REGEX( STR(?disease2), "id=DOID:")
+}
+            

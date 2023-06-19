@@ -1,0 +1,10 @@
+CONSTRUCT {    
+    ?wbdisease nt:001 ?geneid .
+    ?wbdisease nt:009 ?doid .
+}
+WHERE {
+  ?wbdisease nt:001 ?geneid .
+  ?wbdisease nt:009 ?doid . # refers to disease associated with celegans gene
+  FILTER NOT EXISTS{ ?wbdisease sio:000772 <http://purl.obolibrary.org/obo/ECO_0000201>. }  # without ortholog
+}
+            
