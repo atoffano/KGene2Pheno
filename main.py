@@ -19,7 +19,7 @@ def main():
     # General arguments
     parser.add_argument('--keywords', nargs='*', default=None, help='Multiple keywords')
     parser.add_argument('--method', required=True, help='Name of the method')
-    parser.add_argument('--dataset', required=True, help='Name of the dataset')
+    parser.add_argument('--dataset', required=False, help='Name of the dataset')
     parser.add_argument('--query', default=None, help='A SPARQL query')
 
     parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')

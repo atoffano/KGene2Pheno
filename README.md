@@ -3,18 +3,20 @@ This repository stores the code required to derive insight from the wormbase dat
 
 ## Prerequisites
 
-Before using this code, make sure you have the following dependencies installed:
+Make sure you have the following dependencies installed:
 - python 3.10 or higher
 - pandas
-- pyyaml
 - SPARQLWrapper
 - torch
 - torchkge
 - sklearn
 - pycaret
 
-You can install the dependencies using the provided requirements.txt file:
+You can install the dependencies using the following command line or with the provided requirements.txt file:
 
+```bash
+pip install torchkge pycaret torch SPARQLWrapper pandas numpy
+```
 ```bash
 pip install -r requirements.txt
 ```
@@ -44,7 +46,7 @@ Specify the required command-line arguments to customize the behavior of the scr
     --keywords: Specify multiple keywords to generate the dataset(optional). 
     Currently available: disease gene phenotype not-phenotype interaction disease_plus_ortho expression_value expression_pattern lifestage-ontology disease-ontology phenotype-ontology go-ontology go-annotation
     --method: Name of the method (required). One of TransE, TorusE, ComplEx, ConvKB.
-    --dataset: Used to specify local datasets. See 'Using a local dataset' for more information.
+    --dataset: Used to specify local datasets (optional). See 'Using a local dataset' for more information.
     --query: A SPARQL query (optional). Used to retrieve data from a query instead of using keywords.
     --normalize_parameters: Whether to normalize entity embeddings (optional). Defaults to False.
     --train_classifier: Train a classifier on the generated embeddings (optional). Specify the names of the classifiers to use as n arguments. See the PyCaret documentation for all available classifiers.
