@@ -64,7 +64,7 @@ Specify the required command-line arguments to customize the behavior of the scr
     --margin: Margin value (optional). Defaults to 1.
     --rel_emb_dim: Size of entity embeddings (optional). Defaults to 50.
     --n_filters: Number of filters (ConvKB) (optional). Defaults to 10.
-    --init_transe: Whether to initialize ConvKB with transe embeddings (optional). Defaults to True.
+    --init_transe: Whether to initialize ConvKB with transe embeddings (optional). Takes the following nargs: [path to .pt TransE model] [TransE entity embedding size] [TransE dissimilarity_type].
 
 Note: Arguments marked as (required) are mandatory and must be provided.
 

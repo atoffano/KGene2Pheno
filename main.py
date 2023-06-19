@@ -44,11 +44,11 @@ def main():
     parser.add_argument('--margin', required=False, default=1, type=float, help='margin value.')
 
     # TorusE
-    parser.add_argument('--rel_emb_dim', required=False, default=50, type=int, help='Size of entity embeddings')
+    parser.add_argument('--rel_emb_dim', required=False, default=50, type=int, help='Size of relation embeddings')
 
     # ConvKB
-    parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of filters (ConvKB)')
-    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to initialize ConvKB with transe embeddings')
+    parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of ConvKB filters')
+    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to initialize ConvKB with transe embeddings. Takes the following nargs: [path to .pt TransE model] [TransE entity embedding size] [TransE dissimilarity_type]')
     
     args = parser.parse_args()
     config = vars(args)
