@@ -44,7 +44,7 @@ Replace main.py with the name of the script file containing the code.
 Specify the required command-line arguments to customize the behavior of the script. The available arguments are:
 
     --keywords: Specify multiple keywords to generate the dataset(optional). 
-    Currently available: disease molecular_entity phenotype not-phenotype interaction disease_plus_ortho expression_value expression_pattern lifestage-ontology disease-ontology phenotype-ontology go-ontology go-annotation
+    Currently available: disease molecular-entity phenotype not-phenotype interaction disease_plus_ortho expression_value expression_pattern lifestage-ontology disease-ontology phenotype-ontology go-ontology go-annotation
     --method: Name of the method (required). One of TransE, TorusE, ComplEx, ConvKB.
     --dataset: Used to specify local datasets (optional). See 'Using a local dataset' for more information.
     --query: A SPARQL query (optional). Used to retrieve data from a query instead of using keywords.
@@ -79,7 +79,7 @@ All logs are saved in the logs folder. Models are saved in the models folder. Em
 ## Keywords
 Specific SPARQL queries are available as a baseline. They can be added or removed in a modular way by specifying them as nargs for the '--keyword' argument.
 
-    molecular_entity: All molecular entities, including genes, ncRNA, pseudogenes, etc.
+    molecular-entity: All molecular entities, including genes, ncRNA, pseudogenes, etc.
     phenotype: All phenotypes.
     not-phenotype: All negatively associated phenotypes.
     interaction: All interactions between molecular entities.
@@ -105,7 +105,7 @@ Here are a few examples of how to use the code:
 
 Training an embedding model with default configuration:
 
-    python main.py --method "TransE" --keywords molecular_entity phenotype not-phenotype disease_plus_ortho interaction expression_pattern lifestage-ontology disease-ontology phenotype-ontology
+    python main.py --method "TransE" --keywords molecular-entity phenotype not-phenotype disease_plus_ortho interaction expression_pattern lifestage-ontology disease-ontology phenotype-ontology
 
 Note: Replace "main.py" with the actual name of the script file, and replace "SPARQL query," "method_name," and "dataset_name" with your own values.
 
