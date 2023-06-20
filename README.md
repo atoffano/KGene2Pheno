@@ -105,7 +105,7 @@ Here are a few examples of how to use the code:
 
 Training an embedding model with default configuration:
 
-    python main.py --method "TransE" --keywords molecular-entity phenotype not-phenotype disease_plus_ortho interaction expression_pattern lifestage-ontology disease-ontology phenotype-ontology
+    python main.py --method "TransE" --dataset celegans --keywords molecular-entity phenotype not-phenotype disease_plus_ortho interaction expression_pattern lifestage-ontology disease-ontology phenotype-ontology
 
 Note: Replace "main.py" with the actual name of the script file, and replace "SPARQL query," "method_name," and "dataset_name" with your own values.
 

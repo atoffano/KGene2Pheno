@@ -22,25 +22,27 @@ def main():
     parser.add_argument('--dataset', required=False, help='Name of the dataset')
     parser.add_argument('--query', default=None, help='A SPARQL query')
 
-    parser.add_argument('--normalize_parameters', action='store_true', help='whether to normalize entity embeddings')
+    parser.add_argument('--normalize_parameters', action='store_true', help='Whether to normalize entity embeddings. Recommended.')
 
-    parser.add_argument('--train_classifier', nargs='*', help='train a classifier on the embeddings')
+    parser.add_argument('--train_classifier', nargs='*', help='Train a classifier on the embeddings. \
+                            Add nargs to specify the model type(s) to train. See Pycaret docs for the full list of supported models.')
 
-    parser.add_argument('--save_model', action='store_true', help='whether to save the model weights')
-    parser.add_argument('--save_data', action='store_true', help='whether to save the data split')
-    parser.add_argument('--save_embeddings', action='store_true', help='whether to save the embeddings as csv')
+    parser.add_argument('--save_model', action='store_true', help='Whether to save the model weights')
+    parser.add_argument('--save_data', action='store_true', help='Whether to save the data split')
+    parser.add_argument('--save_embeddings', action='store_true', help='Whether to save the embeddings as .csv')
 
-    # Add torchkge arguments
-
+    # TorchKGE arguments
     parser.add_argument('--n_epochs', required=False, default=20, type=int, help='Number of epochs')
     parser.add_argument('--batch_size', required=False, default=128, type=int, help='Batch size')
     parser.add_argument('--lr', required=False, default=0.0001, type=float, help='Learning rate')
     parser.add_argument('--weight_decay', required=False, default=0.0001, type=float, help='Weight decay')
     parser.add_argument('--loss_fn', required=False, default="margin", type=str, help='loss function. ne of "margin", "bce", "logistic".')
     parser.add_argument('--ent_emb_dim', required=False, default=50, type=int, help='Size of entity embeddings')
-    parser.add_argument('--eval_task', required=False, default="relation-prediction", type=str, help='Task on which to evaluate the embedding model. One of "link-prediction", "relation-prediction".')
+    parser.add_argument('--eval_task', required=False, default="relation-prediction", type=str, help='Task on which to evaluate the embedding model. \
+                            One of "link-prediction", "relation-prediction".')
     parser.add_argument('--split_ratio', required=False, default=0.8, type=float, help='train/test ratio')
-    parser.add_argument('--dissimilarity_type', required=False, default='L1', type=str, help='Either "L1" or "L2", representing the type of dissimilarity measure to use')
+    parser.add_argument('--dissimilarity_type', required=False, default='L1', type=str, help='Either "L1" or "L2", \
+                            representing the type of dissimilarity measure to use')
     parser.add_argument('--margin', required=False, default=1, type=float, help='margin value.')
 
     # TorusE
@@ -48,7 +50,9 @@ def main():
 
     # ConvKB
     parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of ConvKB filters')
-    parser.add_argument('--init_transe', nargs='*', required=False, default=False, help='Whether to initialize ConvKB with transe embeddings. Takes the following nargs: [path to .pt TransE model] [TransE entity embedding size] [TransE dissimilarity_type]')
+    parser.add_argument('--init_transe', nargs='*', required=False, default=False, help='Whether to initialize ConvKB with transe embeddings. \
+                            Additional arguments allows to initialize ConvKB from a pretrained TransE model: \
+                             [path to TransE model (.pt)] [TransE entity embedding size] [TransE dissimilarity_type]')
     
     args = parser.parse_args()
     config = vars(args)
