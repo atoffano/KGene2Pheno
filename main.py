@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--weight_decay', required=False, default=0.0001, type=float, help='Weight decay')
     parser.add_argument('--loss_fn', required=False, default="margin", type=str, help='loss function. ne of "margin", "bce", "logistic".')
     parser.add_argument('--ent_emb_dim', required=False, default=50, type=int, help='Size of entity embeddings')
-    parser.add_argument('--eval_task', required=False, default="relation-prediction", type=str, help='Task on which to evaluate the embedding model. One of "link-prediction", "relation-prediction", "triplet-classification"')
+    parser.add_argument('--eval_task', required=False, default="relation-prediction", type=str, help='Task on which to evaluate the embedding model. One of "link-prediction", "relation-prediction".')
     parser.add_argument('--split_ratio', required=False, default=0.8, type=float, help='train/test ratio')
     parser.add_argument('--dissimilarity_type', required=False, default='L1', type=str, help='Either "L1" or "L2", representing the type of dissimilarity measure to use')
     parser.add_argument('--margin', required=False, default=1, type=float, help='margin value.')
@@ -95,7 +95,7 @@ def main():
         cuda.empty_cache()
     else:
         device = torch.device('cpu')
-    logger.info(f"Device: {device}")
+    logger.info(f"Device: {device}\n")
 
 
     # Gather data, either from local file or SPARQL endpoint
@@ -141,7 +141,7 @@ def main():
     # Train embedding model with the selected method
     if config['method'] and config['method'] in ["TransE", "TransH", "TransR", "TransD", "TorusE", "RESCAL", "DistMult", "HolE", "ComplEx", "ANALOGY", "ConvKB"]:
         emb_model, kg_train, kg_test= src.train.train(config['method'], dataset, config, timestart, logger, device)
-        logger.info("Training of Embedding Model done !")
+        logger.info("Training of Embedding Model done !\n")
     else:
         raise Exception("Method not supported. Check spelling ?")
 
@@ -152,10 +152,10 @@ def main():
     if config['train_classifier']:
         logger.info("Converting test set to embeddings...")
         data = src.embeddings.generate(emb_model, kg_test, config, timestart, device)
-        logger.info("Test set converted. It will be used to train the classifier")
+        logger.info("Test set converted. It will be used to train the classifier\n")
         logger.info("Training classifier...")
         src.classifier.train_classifier(config['train_classifier'], data, timestart, logger=logger, device=device, save=config['save_model'])
-        logger.info("Classifier trained !")
+        logger.info("Classifier trained !\n")
 
     if config['save_embeddings']:
         for kg, name in zip([kg_train, kg_test], ["train", "test"]):

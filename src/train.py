@@ -57,20 +57,20 @@ def train(method, dataset, config, timestart, logger, device):
         raise ValueError('Some entities are not present in the training set. \n \
                          All entities should be seen during training, else the model will not be able to generate an embedding for unseen entities.')
     # logger.info number of entities and relations in each set:
-    logger.info(f'\n Train set')
+    logger.info(f'Train set')
     logger.info(f'Number of entities: {kg_train.n_ent}')
     logger.info(f'Number of relations: {kg_train.n_rel}')
-    logger.info(f'Number of triples: {kg_train.n_facts}')
+    logger.info(f'Number of triples: {kg_train.n_facts} \n')
 
-    logger.info(f'\n Test set')
+    logger.info(f'Test set')
     logger.info(f'Number of entities: {kg_test.n_ent}')
     logger.info(f'Number of relations: {kg_test.n_rel}')
-    logger.info(f'Number of triples: {kg_test.n_facts}')
+    logger.info(f'Number of triples: {kg_test.n_facts}\n')
     
     if kg_train.rel2ix != kg_test.rel2ix:
         logger.info('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
               This is usually due to a relation not being present in the validation or test set. \n \
-              It usually boils down to one directed relation type leading to an unconnected node. A classical example is the "label" relation.')
+              It usually boils down to one directed relation type leading to an unconnected node. A classical example are "label" relations.')
 
     # Initialize the embedding model
     match method:
@@ -150,7 +150,7 @@ def train(method, dataset, config, timestart, logger, device):
     criterion.to(device)
 
     # Log parameters
-    logger.info(f'\n{dt.now()} - PARAMETERS')
+    logger.info(f'{dt.now()} - PARAMETERS')
     for i in config.items():
         logger.info(f'\t {i[0]} : {i[1]}' )
 
@@ -180,7 +180,7 @@ def train(method, dataset, config, timestart, logger, device):
         if config['normalize_parameters']: # Normalize embeddings after each epoch
             emb_model.normalize_parameters()
 
-    logger.info(f'{dt.now()} - Finished Training !')
+    logger.info(f'{dt.now()} - Finished Training !\n')
 
     # Save the model and/or the data
     if os.path.exists('models') == False:
@@ -256,11 +256,7 @@ def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
         case 'link-prediction':
             evaluator = LinkPredictionEvaluator(emb_model, kg_eval)
             evaluator.evaluate(b_size=b_size, verbose=True)
-
-        case 'triple-classification':
-            evaluator = TripleClassificationEvaluator(emb_model, kg_eval)
-            evaluator.evaluate(b_size=b_size, verbose=True)
-
+            
         case 'relation-prediction':
             evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
 
@@ -316,7 +312,9 @@ def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
             cm = confusion_matrix(all_true_ranks_np, all_scores_np)
 
             # logger.info the confusion matrix
-            logger.info('\n' + cm)
+            logger.info(f'\n {cm}')
+        case _:
+            raise ValueError(f'Unknown task {task}')
 
     # Log results to logfile
     logger.info(f'{dt.now()} - EMBEDDING MODEL EVALUATION RESULTS:')
