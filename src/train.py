@@ -18,7 +18,7 @@ from torchkge.utils import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss, Dat
 from torchkge.data_structures import KnowledgeGraph
 from sklearn.metrics import confusion_matrix
 
-from src.utils import timer_func
+from src.utils import timer_func, evaluate_emb_model
 
 @timer_func
 def train(method, dataset, config, timestart, logger, device):
@@ -120,6 +120,8 @@ def train(method, dataset, config, timestart, logger, device):
                 emb_model.ent_emb.weight.data = ent_emb
                 emb_model.rel_emb.weight.data = rel_emb
                 logger.info('ConvKB model initialized with TransE embeddings.')
+            else:
+                emb_model = ConvKBModel(config['ent_emb_dim'], config['n_filters'], kg_train.n_ent, kg_train.n_rel)
 
         case _:
             raise ValueError(f"Method {method} not supported.")
@@ -233,6 +235,8 @@ def val_loss(dataloader, sampler, emb_model, criterion, device='cpu'):
             running_loss += loss.item()
     return running_loss / len(dataloader)
 
+
+@timer_func
 def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
     """
     Evaluate the trained embedding model on a knowledge graph.

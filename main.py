@@ -48,7 +48,7 @@ def main():
 
     # ConvKB
     parser.add_argument('--n_filters', required=False, default=10, type=int, help='Number of ConvKB filters')
-    parser.add_argument('--init_transe', nargs='*', required=False, default=True, help='Whether to initialize ConvKB with transe embeddings. Takes the following nargs: [path to .pt TransE model] [TransE entity embedding size] [TransE dissimilarity_type]')
+    parser.add_argument('--init_transe', nargs='*', required=False, default=False, help='Whether to initialize ConvKB with transe embeddings. Takes the following nargs: [path to .pt TransE model] [TransE entity embedding size] [TransE dissimilarity_type]')
     
     args = parser.parse_args()
     config = vars(args)
