@@ -28,7 +28,7 @@ def train_classifier(model_type, data, timestart, logger, device, save=False):
     # Experiment setup
 
     logger.info(f'Experiment Setup:')
-    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=False, use_gpu=True if device == 'cuda' else False)
+    s = setup(data, target = 'link', fold_strategy = 'stratifiedkfold', fold=10, train_size = 0.8, n_jobs=-1, system_log=logger, use_gpu=True if device == 'cuda' else False, verbose=False)
     exp = ClassificationExperiment()
 
     # Model training
@@ -41,6 +41,7 @@ def train_classifier(model_type, data, timestart, logger, device, save=False):
         if save == True:
             os.makedirs(f'binary_classif/{type}', exist_ok=True)
             save_model(model, f'binary_classif/{type}/{type}_model_{timestart}')
+    os.remove('logs.log')
 
 if __name__ == '__main__':
     from datetime import datetime

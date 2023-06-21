@@ -171,6 +171,5 @@ def main():
         
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     #os.environ["WANDB_API_KEY"]=""
     main()

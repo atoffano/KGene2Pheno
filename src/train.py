@@ -29,8 +29,9 @@ def train(method, dataset, config, timestart, logger, device):
     ----------
     method : str
         The embedding method to use.
-    dataset : str
+    dataset : str / tuple
         The file location of the dataset.
+        Can also be a tuple containing the train/test split in case of a TransE init of convkb.
     config : dict
         CLI arguments.
     timestart : datetime.datetime
@@ -47,30 +48,36 @@ def train(method, dataset, config, timestart, logger, device):
     """
 
     # Dataset loading and splitting
-    df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
-    kg = KnowledgeGraph(df) # Create a knowledge graph from the dataframe
+    if type(dataset) == str:
+        df = pd.read_csv(dataset, sep=' ', header=None, names=['from', 'rel', 'to'])
+        kg = KnowledgeGraph(df) # Create a knowledge graph from the dataframe
 
-    logger.info('Splitting knowledge graph..')
-    kg_train, kg_test = split(kg, split_ratio=config['split_ratio'], validation=False) 
+        logger.info('Splitting knowledge graph..')
+        kg_train, kg_test = split(kg, split_ratio=config['split_ratio'], validation=False)
+        
+        if kg.n_ent != kg_train.n_ent:
+            raise ValueError('Some entities are not present in the training set. \n \
+                            All entities should be seen during training, else the model will not be able to generate an embedding for unseen entities.')
+        # logger.info number of entities and relations in each set:
+        logger.info(f'Train set')
+        logger.info(f'Number of entities: {kg_train.n_ent}')
+        logger.info(f'Number of relation types: {kg_train.n_rel}')
+        logger.info(f'Number of triples: {kg_train.n_facts} \n')
 
-    if kg.n_ent != kg_train.n_ent:
-        raise ValueError('Some entities are not present in the training set. \n \
-                         All entities should be seen during training, else the model will not be able to generate an embedding for unseen entities.')
-    # logger.info number of entities and relations in each set:
-    logger.info(f'Train set')
-    logger.info(f'Number of entities: {kg_train.n_ent}')
-    logger.info(f'Number of relations: {kg_train.n_rel}')
-    logger.info(f'Number of triples: {kg_train.n_facts} \n')
+        logger.info(f'Test set')
+        logger.info(f'Number of entities: {kg_test.n_ent}')
+        logger.info(f'Number of relation types: {kg_test.n_rel}')
+        logger.info(f'Number of triples: {kg_test.n_facts}\n')
+        
+        if kg_train.rel2ix != kg_test.rel2ix:
+            logger.info('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
+                This is usually due to a relation not being present in the validation or test set. \n \
+                It usually boils down to one directed relation type leading to an unconnected node. A classical example are "label" relations.')
 
-    logger.info(f'Test set')
-    logger.info(f'Number of entities: {kg_test.n_ent}')
-    logger.info(f'Number of relations: {kg_test.n_rel}')
-    logger.info(f'Number of triples: {kg_test.n_facts}\n')
-    
-    if kg_train.rel2ix != kg_test.rel2ix:
-        logger.info('/!\ WARNING ! /!\ \nNumber of relations are not the same in all sets. \n \
-              This is usually due to a relation not being present in the validation or test set. \n \
-              It usually boils down to one directed relation type leading to an unconnected node. A classical example are "label" relations.')
+    else: # In case of a transe init, reuse the split to avoid data leakage
+        logger.info('Initializing ConvKB by training a TransE from scratch. Reusing split..')
+        kg_train, kg_test = dataset
+
 
     # Initialize the embedding model
     match method:
@@ -95,12 +102,13 @@ def train(method, dataset, config, timestart, logger, device):
         case "ANALOGY":
             emb_model = AnalogyModel(config['ent_emb_dim'], kg_train.n_ent, kg_train.n_rel, config['scalar_share'])
         case "ConvKB":
-            if config['init_transe']:
+            if type(config['init_transe']) == list:
                 # Decide whether to train a TransE from scratch or load a pretrained one
-                if config['init_transe'] == []:
+                if not config['init_transe']: # No args
+                    config['init_transe'] = 'True'
                     # Train a TransE model to initialize the embeddings.
                     # Config will be the same as the one used for ConvKB unless a path is specified as arg.
-                    init_model, _, _, _ = train('TransE', dataset, config, timestart)
+                    init_model, _, _ = train('TransE', (kg_train, kg_test), config, timestart, logger, device)
                     logger.info('TransE model trained.')
 
                 else:
@@ -108,6 +116,7 @@ def train(method, dataset, config, timestart, logger, device):
                     try:
                         path, emb_dim, dissimilarity_type = config['init_transe']
                         emb_dim = int(emb_dim)
+                        config['init_transe'] = f'Init from pretrained TransE model: {path}'
                     except:
                         raise ValueError(f"init_transe should have the following args: path, emb_dim, dissimilarity_type or a boolean.")
                     init_model = TransEModel(emb_dim=emb_dim, n_entities=kg_train.n_ent, n_relations=kg_train.n_rel, dissimilarity_type=dissimilarity_type)
@@ -182,7 +191,7 @@ def train(method, dataset, config, timestart, logger, device):
         if config['normalize_parameters']: # Normalize embeddings after each epoch
             emb_model.normalize_parameters()
 
-    logger.info(f'{dt.now()} - Finished Training !\n')
+    logger.info(f'{dt.now()} - Finished Training of {method} !\n')
 
     # Save the model and/or the data
     if os.path.exists('models') == False:
