@@ -162,6 +162,10 @@ def main():
         logger.info("Classifier trained !\n")
 
     if config['save_embeddings']:
+        # Check if embeddings folder exists
+        if os.path.exists("data/embeddings") == False:
+            os.mkdir("data/embeddings")
+        logger.info("Saving embeddings...")
         for kg, name in zip([kg_train, kg_test], ["train", "test"]):
             kg = src.embeddings.generate(emb_model, kg, config, timestart, device=device)
             kg.to_csv(f"data/embeddings/{config['method']}_{config['dataset']}_{name}_embeddings.csv", index=False)

@@ -270,6 +270,7 @@ def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
             evaluator = LinkPredictionEvaluator(emb_model, kg_eval)
             evaluator.evaluate(b_size=b_size, verbose=True)
             
+            print(evaluator.rank_true_tails)
         case 'relation-prediction':
             evaluator = RelationPredictionEvaluator(emb_model, kg_eval)
 
