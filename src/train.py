@@ -199,7 +199,6 @@ def train(method, dataset, config, timestart, logger, device):
 
     if config['save_model']:
         torch.save(emb_model.state_dict(), f'models/{method}_{timestart}.pt')
-    if config['save_data']:
         kg_train.get_df().to_csv(f'models/{method}_{timestart}_kg_train.csv')
         kg_test.get_df().to_csv(f'models/{method}_{timestart}_kg_test.csv')
 

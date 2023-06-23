@@ -26,8 +26,7 @@ def main():
     parser.add_argument('--train_classifier', nargs='*', help='Train a classifier on the embeddings. \
                             Add nargs to specify the model type(s) to train. See Pycaret docs for the full list of supported models.')
 
-    parser.add_argument('--save_model', action='store_true', help='Whether to save the model weights')
-    parser.add_argument('--save_data', action='store_true', help='Whether to save the data split')
+    parser.add_argument('--save_model', action='store_true', help='Whether to save the model weights and data')
     parser.add_argument('--save_embeddings', action='store_true', help='Whether to save the embeddings as .csv')
 
     # TorchKGE arguments

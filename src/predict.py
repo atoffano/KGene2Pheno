@@ -144,7 +144,7 @@ def load_model(argsmodel, kg):
                 emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=argsmodel[3])
             case "ConvKB":
                 ConvKBModel(argsmodel[2], kg.n_ent, kg.n_rel, nb_filters=argsmodel[3])
-        emb_model.load_state_dict(torch.load(model_path))
+        emb_model.load_state_dict(torch.load(argsmodel[1]))
     except IndexError:
         raise IndexError("Index out of range. You may be missing one argument in --model.")
  
@@ -159,7 +159,7 @@ def load_graph(graph_path):
     Returns:
         object: The loaded knowledge graph.
     """
-    df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
+    df = pd.read_csv(graph_path, sep=',', header=0, names=['from', 'rel', 'to'])
     kg = KnowledgeGraph(df)
     return kg
 
@@ -168,7 +168,7 @@ def parse_arguments():
     parser.add_argument('--model', type=str, nargs='+', help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
     parser.add_argument('--filter_known_facts', action='store_true', help='Removes known facts from the predictions')
     parser.add_argument('--topk', type=int, default=10, help='Number of predictions to return (optional, default=10)')
-    parser.add_argument('--graph', type=str, required=True, help='Path of the graph file (required)')
+    parser.add_argument('--graph', type=str, required=True, help='Path of the model\'s training data file as .csv(required)')
     parser.add_argument('--file', type=str, help='CSV file containing predictions in the format: head,relation,? or ?,relation,tail')
     parser.add_argument('--triple', type=str, nargs='+', help='URI of triple like [head] [relation] [?] or [head] [relation] [?] (optional)')
     parser.add_argument('--b_size', type=int, default=264, help='Batch size (optional, default=264)')
@@ -236,7 +236,7 @@ def main():
         # read file, split by comma, convert to indices
         with open(args.file, 'r') as f:
             for line in f:
-                h, r, t = line.strip().split('\t')
+                h, r, t = line.strip().split(',')
                 missing = 'heads' if h == '?' else 'tails'
                 if missing == 'tails':
                     known_entities.append(kg.ent2ix[h])
@@ -271,10 +271,10 @@ def main():
             colored_values = []
 
             for value in values:
-                if value in unfilt_pred[key]:
-                    colored_values.append(colored(str(value), 'light_yellow'))
-                else:
+                if value not in filt_pred[key]:
                     colored_values.append(colored(str(value), 'green'))
+                else:
+                    colored_values.append(colored(str(value), 'light_yellow'))
 
             print(f"{key}: {', '.join(colored_values)}")
     else:
@@ -301,16 +301,16 @@ def main():
                 for entity, relation in zip(merged_data, known_relations):
                     values = merged_data[entity]
                     for value in values:
-                        if value in unfilt_pred[entity]:
-                            if missing == 'tails':
-                                f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]}, PRED\n")
-                            else:
-                                f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]}, PRED\n")
-                        else:
+                        if value not in filt_pred[entity]:
                             if missing == 'tails':
                                 f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]}, KNOWN\n")
                             else:
                                 f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]}, KNOWN\n")
+                        else:
+                            if missing == 'tails':
+                                f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]}, PRED\n")
+                            else:
+                                f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]}, PRED\n")
                          
         print(f"Predictions saved to {args.output}")
 
