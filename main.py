@@ -23,7 +23,6 @@ def main():
     parser.add_argument('--query', default=None, help='A SPARQL query')
 
     parser.add_argument('--normalize_parameters', action='store_true', help='Whether to normalize entity embeddings. Recommended.')
-
     parser.add_argument('--train_classifier', nargs='*', help='Train a classifier on the embeddings. \
                             Add nargs to specify the model type(s) to train. See Pycaret docs for the full list of supported models.')
 
