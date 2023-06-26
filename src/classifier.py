@@ -43,6 +43,11 @@ def train_classifier(model_type, data, timestart, logger, device, save=False):
             save_model(model, f'binary_classif/{type}/{type}_model_{timestart}')
     os.remove('logs.log')
 
+def classifier_inference(classif_path, dataframe, output_path):
+    classifier = load_model(classif_path)
+    predictions = predict_model(classifier, data = dataframe, raw_score=True, verbose=True)
+    return predictions
+
 if __name__ == '__main__':
     from datetime import datetime
     model_type = ['lr', 'lightgbm', 'rf', 'et']

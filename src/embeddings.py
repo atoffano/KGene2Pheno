@@ -138,7 +138,7 @@ def generate(emb_model, dataset, config, timestart, device):
     #shuffle df rows randomly
     df = df.sample(frac=1).reset_index(drop=True)
 
-    if config['save_data'] == True:
+    if config['save_embeddings'] == True:
         df.to_csv(f'data/embeddings/{timestart}_{config["method"]}', index=False)
 
     return df

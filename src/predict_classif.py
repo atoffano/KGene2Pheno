@@ -7,15 +7,28 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import cuda
+from torch.utils.data import Dataset
 
 from torchkge.sampling import BernoulliNegativeSampler
-from torchkge.utils import DataLoader
+# from torchkge.utils import DataLoader as DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 from torchkge.inference import *
+ 
+from utils import *
 
-from utils import timer_func
+from classifier import *
 
+class KGDataset(Dataset):
+    def __init__(self, dataframe):
+        self.data = dataframe.values
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        head, tail = self.data[index]
+        return head, tail
 
 def evaluate(ent_inf, b_size, filter_known_facts=True, verbose=True):
     """Performs evaluation on the given entity inference model.
@@ -119,7 +132,7 @@ def load_model(argsmodel, kg):
     Returns:
         object: The loaded embedding model.
     """
-    argsmodel[2] = int(argsmodel[2]) # Convert dim number to int
+    argsmodel[2] = int(argsmodel[2]) # Convert dim size to int
     try:
         match argsmodel[0]:
             case "TransE":
@@ -131,7 +144,7 @@ def load_model(argsmodel, kg):
             case "TransD":
                 emb_model = TransDModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
             case "TorusE":
-                emb_model = TorusEModel(args.model[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3]) #dissim type one of  ‘torus_L1’, ‘torus_L2’, ‘torus_eL2’.
+                emb_model = TorusEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3]) #dissim type one of  ‘torus_L1’, ‘torus_L2’, ‘torus_eL2’.
             case "RESCAL":
                 emb_model = RESCALModel(argsmodel[2], kg.n_ent, kg.n_rel)
             case "DistMult":
@@ -141,9 +154,9 @@ def load_model(argsmodel, kg):
             case "ComplEx":
                 emb_model = ComplExModel(argsmodel[2], kg.n_ent, kg.n_rel)
             case "ANALOGY":
-                emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=int(argsmodel[3]))
+                emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=argsmodel[3])
             case "ConvKB":
-                emb_model = ConvKBModel(argsmodel[2], int(argsmodel[3]), kg.n_ent, kg.n_rel)
+                ConvKBModel(argsmodel[2], kg.n_ent, kg.n_rel, nb_filters=argsmodel[3])
         emb_model.load_state_dict(torch.load(argsmodel[1]))
     except IndexError:
         raise IndexError("Index out of range. You may be missing one argument in --model.")
@@ -167,7 +180,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Knowledge Graph Embedding Predictions')
     parser.add_argument('--model', type=str, nargs='+', help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
     parser.add_argument('--filter_known_facts', action='store_true', help='Removes known facts from the predictions')
-    parser.add_argument('--topk', type=int, default=10, help='Number of predictions to return (optional, default=10)')
+    parser.add_argument('--gene', type=str, help='Gene URI')
     parser.add_argument('--graph', type=str, required=True, help='Path of the model\'s training data file as .csv(required)')
     parser.add_argument('--file', type=str, help='CSV file containing queries in the format: [head,relation,?] or [?,relation,tail]')
     parser.add_argument('--triple', type=str, nargs='+', help='URI of triple like [head] [relation] [?] or [head] [relation] [?] (optional)')
@@ -188,6 +201,7 @@ def main():
     """
     args = parse_arguments()
 
+
     # Load the knowledge graph if provided
     print("Loading graph..")
     if args.graph:
@@ -195,107 +209,108 @@ def main():
     else:
         raise Exception("No knowledge graph provided")
 
+    df = kg.get_df()
+
+
+    df_annot = df[df['rel'] == 'http://semanticscience.org/resource/SIO_001279']
+    # Make a dict matching df_annot['from'] to df_annot['to']
+    dict_annotations = dict(zip(df_annot['from'], df_annot['to']))
+
+    df_gene = df[df['rel'] == 'http://www.semanticweb.org/needed-terms#001'] 
+
+    # Find rows in df_gene where df_gene['to'] matches the target gene
+    matching_rows = df_gene[df_gene['to'] == args.gene]
+
+    # Find rows in matching_rows that share their annotation with df_annot
+    matching_rows = matching_rows[matching_rows['from'].isin(df_annot['from'])]
+
+    # Add col df_annot['to'] to result as 'phenotype' if df_annots['from'] matches result['from']
+    matching_rows = matching_rows.merge(df_annot[['from', 'to']], on='from', how='left')
+
+    known_annotations = matching_rows['from']
+    known_annotations.drop_duplicates(inplace=True)
+    known_annotations = known_annotations.rename('annotation')
+
+    # Remove column `rel`
+    df_annot.drop(['rel', 'to'], axis=1, inplace=True)
+
+    # Rename col 'from' to 'annotation', add col 'gene'
+    df_annot = df_annot.rename(columns={'from': 'annotation'})
+    df_annot['gene'] = args.gene
+
+    # Remove duplicates
+    df_annot = df_annot.drop_duplicates()
+
+    df_annot = df_annot.applymap(lambda x: kg.ent2ix[x])
+
     # Load the embedding model
     print("Loading model..")
     emb_model = load_model(args.model, kg)
 
+    dataset = KGDataset(df_annot)
+    batch_size = 264  # Specify your desired batch size
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+    with torch.no_grad():
+        h_idxs, t_idxs, h_emb, t_emb = torch.tensor([]), torch.tensor([]), torch.tensor([]), torch.tensor([])
+        for h_idx, t_idx in dataloader:
+            
+            # Add batch to tensors
+            h_idxs = torch.cat((h_idxs, h_idx), dim=0)
+            t_idxs = torch.cat((t_idxs, t_idx), dim=0)
 
-    # Convert head, relation, tail to known_entities and known_relations
-    known_entities = []
-    known_relations = []
+            # Get entity embeddings for the batch
+            if type(emb_model) == ComplExModel:
+                # Real embeddings
+                h = emb_model.re_ent_emb(h_idx)
+                t = emb_model.re_ent_emb(t_idx)
 
-    if args.triple:
-        h, r, t = args.triple
-        missing = 'heads' if h == '?' else 'tails'
-        if missing == 'tails':
-            known_entities.append(kg.ent2ix[h])
-        else:
-            known_entities.append(kg.ent2ix[t])
-        known_relations.append(kg.rel2ix[r])
+                # Imaginary embeddings
+                im_h = emb_model.im_ent_emb(h_idx)
+                im_t = emb_model.im_ent_emb(t_idx)
 
-    elif args.file:
-        # read file, split by comma, convert to indices
-        with open(args.file, 'r') as f:
-            for line in f:
-                h, r, t = line.strip().split(',')
-                missing = 'heads' if h == '?' else 'tails'
-                if missing == 'tails':
-                    known_entities.append(kg.ent2ix[h])
-                else:
-                    known_entities.append(kg.ent2ix[t])
-                known_relations.append(kg.rel2ix[r])
-    
+                # Concatenate real and imaginary embeddings
+                h = torch.cat((h, im_h), dim=1)
+                t = torch.cat((t, im_t), dim=1)
 
-    known_entities = torch.tensor(known_entities, dtype=torch.long)
-    known_relations = torch.tensor(known_relations, dtype=torch.long)
-
-    # Inference with filter on known facts
-    ent_inf_filt = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing='tails', dictionary=kg.dict_of_tails)
-    evaluate(ent_inf_filt, args.b_size, filter_known_facts=True)
-    filt_pred = format_predictions(ent_inf_filt, kg)
-    
-    if not args.filter_known_facts:
-        # Inference without filtering known facts
-        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing='tails', dictionary=kg.dict_of_tails)
-        evaluate(ent_inf, args.b_size, filter_known_facts=False)
-        unfilt_pred = format_predictions(ent_inf, kg)
-
-        # Merge the dictionaries
-        merged_data = {}
-        for key in unfilt_pred:
-            merged_data[key] = sorted(list(set(unfilt_pred[key] + filt_pred.get(key, []))), key=lambda x: x[1], reverse=True)
-
-
-        # Print predictions to console
-        for key in merged_data:
-            values = merged_data[key]
-            colored_values = []
-
-            for value in values:
-                if value not in filt_pred[key]:
-                    colored_values.append(colored(str(value), 'green'))
-                else:
-                    colored_values.append(colored(str(value), 'light_yellow'))
-
-            print(f"{key}: {', '.join(colored_values)}")
-    else:
-        # Print predictions to console
-        for key in filt_pred:
-            values = filt_pred[key]
-            print(f"{key}: {', '.join([str(value) for value in values])}")
-
-    
-    ix2rel = {v: k for k, v in kg.rel2ix.items()}
-    # Output predictions to file if provided
-    if args.output:
-        with open(args.output, 'w') as f:
-            f.write(f"Predicted using {args.model[0]} model - {args.model[1]}")
-            f.write("head,relation,tail,confidence,source\n")
-            if args.filter_known_facts:
-                for entity, relation in zip(filt_pred, known_relations):
-                    values = filt_pred[entity]
-                    for value in values:
-                        if missing == 'tails':
-                            f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]},PRED\n")
-                        else:
-                            f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]},PRED\n")
             else:
-                for entity, relation in zip(merged_data, known_relations):
-                    values = merged_data[entity]
-                    for value in values:
-                        if value not in filt_pred[entity]:
-                            if missing == 'tails':
-                                f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]}, KNOWN\n")
-                            else:
-                                f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]}, KNOWN\n")
-                        else:
-                            if missing == 'tails':
-                                f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]}, PRED\n")
-                            else:
-                                f.write(f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]}, PRED\n")
-                         
-        print(f"Predictions saved to {args.output}")
+                h = emb_model.ent_emb(h_idx)
+                t = emb_model.ent_emb(t_idx)
+            
+            # h, t to respective tensors
+            h_emb = torch.cat((h_emb, h), dim=0)
+            t_emb = torch.cat((t_emb, t), dim=0)
 
+    ix2ent = {v: k for k, v in kg.ent2ix.items()} # Mapping of entity indices to entity names
+    h_idx = h_idxs.numpy()
+    h_idx_dict = np.vectorize(ix2ent.get)(h_idx) # Match head entity indices to entity names
+    t_idx = t_idxs.numpy()
+    t_idx_dict = np.vectorize(ix2ent.get)(t_idx) # Match tail entity indices to entity names
+
+    # make all embeddings as a df with 50 features (default) per node (total 100 for head [0:49] and tail [50:99])
+    df_emb = torch.cat((h_emb, t_emb), dim=1)
+    df_emb = pd.DataFrame(df_emb.numpy())
+    print(df_emb.shape)
+    df_emb['annotation'] = h_idx_dict
+    df_emb['gene'] = t_idx_dict
+
+    predictions = classifier_inference('/home/antoine/KGene2Pheno/binary_classif/rf/rf_model_2023-06-26 13:00:36.058257', df_emb, output_path='/home/antoine/KGene2Pheno/classif_predictions.csv')
+    
+    # Keep only the last 5 cols
+    filter_predictions = predictions.iloc[:, -5:]
+
+    # Add col 'known' with value True if the filter_prediction['tail'] of the row is in known_phenotypes, else False
+    filter_predictions['known'] = filter_predictions['annotation'].isin(known_annotations)
+    
+    # Add a col 'matching_phenotype' corresponding to the value of dict_annotations[filter_predictions['annotation']]
+    filter_predictions['matching_phenotype'] = filter_predictions['annotation'].map(dict_annotations)
+
+
+    # Remove all rows where 'prediction_label' = 0. COMMENT OUT TO KEEP NEGATIVE PREDICTIONS
+    filter_predictions = filter_predictions[filter_predictions['prediction_label'] == 1]
+    # Order rows by 'prediction_score1' in descending order
+    filter_predictions = filter_predictions.sort_values(by='prediction_score_1', ascending=False)
+
+    filter_predictions.to_csv('/home/antoine/KGene2Pheno/classif_predictions_filt.csv', index=False)
 
 if __name__ == '__main__':
     main()

@@ -166,6 +166,7 @@ def train(method, dataset, config, timestart, logger, device):
         logger.info(f'\t {i[0]} : {i[1]}' )
 
     # Training loop
+    logger.info(f'Training model {method} for {config["n_epochs"]} epochs...')
     iterator = tqdm(range(config['n_epochs']), unit='epoch')
     for epoch in iterator:
         running_loss = 0.0
@@ -184,7 +185,7 @@ def train(method, dataset, config, timestart, logger, device):
             running_loss += loss.item()
         
         validation_loss = val_loss(test_dataloader, test_sampler, emb_model, criterion, device) # Compute validation loss
-        logger.info(f'{dt.now()} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}, val loss: {validation_loss}')
+        logger.info(f'{dt.now()} - {method} - Epoch {epoch + 1} | mean loss: { running_loss / len(dataloader)}, val loss: {validation_loss}')
         # wandb.log({'loss': running_loss / len(dataloader)})
         # wandb.log({'val_loss': validation_loss})
 
