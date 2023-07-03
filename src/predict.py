@@ -17,7 +17,7 @@ from torchkge.inference import *
 from utils import timer_func
 
 
-def evaluate(ent_inf, b_size, filter_known_facts=True, verbose=True):
+def evaluate(ent_inf, b_size, filter_known_facts, verbose=True):
     """Performs evaluation on the given entity inference model.
 
     Args:
@@ -58,48 +58,50 @@ def evaluate(ent_inf, b_size, filter_known_facts=True, verbose=True):
     #     dataloader = DataLoader_(ent_inf.known_entities, ent_inf.known_relations, batch_size=b_size, use_cuda='batch')
     #     ent_inf.predictions = ent_inf.predictions.cuda()
     # else:
-    dataloader = DataLoader_(ent_inf.known_entities, ent_inf.known_relations, batch_size=b_size)
+    with torch.no_grad():
+        dataloader = DataLoader_(ent_inf.known_entities, ent_inf.known_relations, batch_size=b_size)
 
-    for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
-                            unit='batch', disable=(not verbose),
-                            desc='Inference'):
-        known_ents, known_rels = batch[0], batch[1]
-        if ent_inf.missing == 'heads':
-            _, t_emb, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(tensor([]).long(), known_ents,
-                                                                                    known_rels,
-                                                                                    entities=True)
-            scores = ent_inf.model.inference_scoring_function(candidates, t_emb, rel_emb)
-        else:
-            h_emb, _, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(known_ents, tensor([]).long(),
-                                                                                    known_rels,
-                                                                                    entities=True)
-            scores = ent_inf.model.inference_scoring_function(h_emb, candidates, rel_emb)
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
+                                unit='batch', disable=(not verbose),
+                                desc='Inference'):
+            known_ents, known_rels = batch[0], batch[1]
+            if ent_inf.missing == 'heads': # Take into account whether we're predicting a head or a tail
+                print("heads")
+                print(known_ents)
+                print(known_rels)
+                print(known_ents.shape)
+                print(known_rels.shape)
+                _, t_emb, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(tensor([]).long(), known_ents,
+                                                                                        known_rels,
+                                                                                        entities=True)
+                print(t_emb, t_emb.shape)
+                print(rel_emb, rel_emb.shape)
+                print(candidates, candidates.shape)
+                scores = ent_inf.model.inference_scoring_function(candidates, t_emb, rel_emb)
+            else:
+                h_emb, _, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(known_ents, tensor([]).long(),
+                                                                                        known_rels,
+                                                                                        entities=True)
+                scores = ent_inf.model.inference_scoring_function(h_emb, candidates, rel_emb)
 
-        if filter_known_facts:
-            scores = filter_scores(scores, ent_inf.dictionary, known_ents, known_rels, None)
+            if filter_known_facts: # Remove already known facts
+                scores = filter_scores(scores, ent_inf.dictionary, known_ents, known_rels, None)
 
-        scores, indices = scores.sort(descending=True)
+            scores, indices = scores.sort(descending=True)
+            # Isolate topk predictions
+            ent_inf.predictions[i * b_size: (i+1)*b_size] = indices[:, :ent_inf.top_k]
+            ent_inf.scores[i*b_size: (i+1)*b_size] = scores[:, :ent_inf.top_k]
 
-        ent_inf.predictions[i * b_size: (i+1)*b_size] = indices[:, :ent_inf.top_k]
-        ent_inf.scores[i*b_size: (i+1)*b_size] = scores[:, :ent_inf.top_k]
-
-
-    # if use_cuda:
-    #     ent_inf.predictions = ent_inf.predictions.cpu()
-    #     ent_inf.scores = ent_inf.scores.cpu()
 
 def format_predictions(ent_inf, kg):
-    """Formats the predictions from the entity inference model.
+    """Formats the predictions from the entity inference model by converting indices to entities and matching them with their scores.
 
     Args:
         ent_inf (object): The entity inference model.
         kg (object): The knowledge graph.
 
     Returns:
-        dict: A dictionary containing the formatted predictions.
-
-    Raises:
-        None
+        dict: A dictionary containing the formatted predictions in the form of {input_entity: [(predicted_entity, score), ...]}.
     """
     ix2ent = {v: k for k, v in kg.ent2ix.items()} # Transform all indices back to entities
     predictions, score = {}, {}
@@ -185,6 +187,7 @@ def main():
         - If `filter_known_facts` flag is False, the inference is performed without filtering known facts using `ent_inf`, and the predictions are formatted.
         - The dictionaries of filtered and unfiltered predictions are merged, and the results are printed to the console.
         - If an output file is specified, the predictions are saved to the file.
+    Prediction ranking follows a descending order of confidence: the higher the score the more confidence there is. Scores can not be directly compared between different models.
     """
     args = parse_arguments()
 
@@ -230,24 +233,24 @@ def main():
     known_relations = torch.tensor(known_relations, dtype=torch.long)
 
     # Inference with filter on known facts
-    ent_inf_filt = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing='tails', dictionary=kg.dict_of_tails)
+    ent_inf_filt = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=[kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads])
     evaluate(ent_inf_filt, args.b_size, filter_known_facts=True)
     filt_pred = format_predictions(ent_inf_filt, kg)
     
     if not args.filter_known_facts:
         # Inference without filtering known facts
-        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing='tails', dictionary=kg.dict_of_tails)
+        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=[kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads])
         evaluate(ent_inf, args.b_size, filter_known_facts=False)
         unfilt_pred = format_predictions(ent_inf, kg)
 
         # Merge the dictionaries
         merged_data = {}
-        for key in unfilt_pred:
+        for key in tqdm(unfilt_pred, desc='Identifying known facts'):
             merged_data[key] = sorted(list(set(unfilt_pred[key] + filt_pred.get(key, []))), key=lambda x: x[1], reverse=True)
 
 
         # Print predictions to console
-        for key in merged_data:
+        for key in tqdm(merged_data, desc='Formatting console output'):
             values = merged_data[key]
             colored_values = []
 
@@ -269,7 +272,7 @@ def main():
     # Output predictions to file if provided
     if args.output:
         with open(args.output, 'w') as f:
-            f.write(f"Predicted using {args.model[0]} model - {args.model[1]}")
+            f.write(f"# Predicted using {args.model[0]} model - {args.model[1]}\n")
             f.write("head,relation,tail,confidence,source\n")
             if args.filter_known_facts:
                 for entity, relation in zip(filt_pred, known_relations):
