@@ -65,23 +65,12 @@ def evaluate(ent_inf, b_size, filter_known_facts, verbose=True):
                                 unit='batch', disable=(not verbose),
                                 desc='Inference'):
             known_ents, known_rels = batch[0], batch[1]
+            h_emb, t_emb, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(known_ents, known_ents,
+                                                                        known_rels,
+                                                                        entities=True)
             if ent_inf.missing == 'heads': # Take into account whether we're predicting a head or a tail
-                print("heads")
-                print(known_ents)
-                print(known_rels)
-                print(known_ents.shape)
-                print(known_rels.shape)
-                _, t_emb, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(tensor([]).long(), known_ents,
-                                                                                        known_rels,
-                                                                                        entities=True)
-                print(t_emb, t_emb.shape)
-                print(rel_emb, rel_emb.shape)
-                print(candidates, candidates.shape)
                 scores = ent_inf.model.inference_scoring_function(candidates, t_emb, rel_emb)
             else:
-                h_emb, _, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(known_ents, tensor([]).long(),
-                                                                                        known_rels,
-                                                                                        entities=True)
                 scores = ent_inf.model.inference_scoring_function(h_emb, candidates, rel_emb)
 
             if filter_known_facts: # Remove already known facts
@@ -110,7 +99,7 @@ def format_predictions(ent_inf, kg):
         predictions[key_ix_str] = [(ix2ent[ix.item()], score.item()) for ix, score in zip(ent_inf.predictions[i], ent_inf.scores[i])] # Match entity and its score
     return predictions
 
-def load_model(argsmodel, kg):
+def load_embedding_model(argsmodel, kg):
     """Loads a pre-trained model from the specified path.
 
     Args:
@@ -233,13 +222,13 @@ def main():
     known_relations = torch.tensor(known_relations, dtype=torch.long)
 
     # Inference with filter on known facts
-    ent_inf_filt = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=[kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads])
+    ent_inf_filt = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads)
     evaluate(ent_inf_filt, args.b_size, filter_known_facts=True)
     filt_pred = format_predictions(ent_inf_filt, kg)
     
     if not args.filter_known_facts:
         # Inference without filtering known facts
-        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=[kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads])
+        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads)
         evaluate(ent_inf, args.b_size, filter_known_facts=False)
         unfilt_pred = format_predictions(ent_inf, kg)
 
@@ -250,7 +239,7 @@ def main():
 
 
         # Print predictions to console
-        for key in tqdm(merged_data, desc='Formatting console output'):
+        for key in merged_data:
             values = merged_data[key]
             colored_values = []
 

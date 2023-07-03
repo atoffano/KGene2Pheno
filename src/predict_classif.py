@@ -16,7 +16,7 @@ from torchkge.models import *
 from torchkge.inference import *
  
 from utils import *
-
+from predict import load_embedding_model, load_graph
 from classifier import *
 
 class KGDataset(Dataset):
@@ -29,77 +29,6 @@ class KGDataset(Dataset):
     def __getitem__(self, index):
         head, tail = self.data[index]
         return head, tail
-
-def evaluate(ent_inf, b_size, filter_known_facts=True, verbose=True):
-    """Performs evaluation on the given entity inference model.
-
-    Args:
-        ent_inf (object): The entity inference model.
-        b_size (int): Batch size for data loading.
-        filter_known_facts (bool, optional): Whether to filter known facts from the scores. Defaults to True.
-        verbose (bool, optional): Whether to display progress information. Defaults to True.
-
-    Returns:
-        None
-
-    Raises:
-        None
-
-    Notes:
-        - This a modified copy of torchkge's EntityInference's evaluate func.
-        - The `ent_inf` object should have the following attributes:
-            - known_entities (list): List of known entities.
-            - known_relations (list): List of known relations.
-            - predictions (tensor): Tensor to store the predicted indices.
-            - scores (tensor): Tensor to store the scores.
-            - missing (str): Indicates missing heads or tails in the model.
-            - model (object): The underlying inference model.
-            - top_k (int): Number of top predictions to consider.
-            - dictionary (object): Dictionary object for filtering known facts.
-
-        - The `dataloader` object is initialized based on `known_entities`, `known_relations`, and `b_size`.
-
-        - The inference is performed batch-wise using the `dataloader`.
-
-        - The scoring function is applied based on the `missing` attribute.
-
-        - If `filter_known_facts` is True, the scores are filtered using the `dictionary`, `known_ents`, `known_rels`, and None.
-
-        - The top-k predictions and scores are stored in `ent_inf.predictions` and `ent_inf.scores`, respectively.
-    """
-    # if use_cuda:
-    #     dataloader = DataLoader_(ent_inf.known_entities, ent_inf.known_relations, batch_size=b_size, use_cuda='batch')
-    #     ent_inf.predictions = ent_inf.predictions.cuda()
-    # else:
-    dataloader = DataLoader_(ent_inf.known_entities, ent_inf.known_relations, batch_size=b_size)
-
-    for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
-                            unit='batch', disable=(not verbose),
-                            desc='Inference'):
-        known_ents, known_rels = batch[0], batch[1]
-        if ent_inf.missing == 'heads':
-            _, t_emb, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(tensor([]).long(), known_ents,
-                                                                                    known_rels,
-                                                                                    entities=True)
-            scores = ent_inf.model.inference_scoring_function(candidates, t_emb, rel_emb)
-        else:
-            h_emb, _, rel_emb, candidates = ent_inf.model.inference_prepare_candidates(known_ents, tensor([]).long(),
-                                                                                    known_rels,
-                                                                                    entities=True)
-            scores = ent_inf.model.inference_scoring_function(h_emb, candidates, rel_emb)
-
-        if filter_known_facts:
-            scores = filter_scores(scores, ent_inf.dictionary, known_ents, known_rels, None)
-
-        scores, indices = scores.sort(descending=True)
-
-        ent_inf.predictions[i * b_size: (i+1)*b_size] = indices[:, :ent_inf.top_k]
-        ent_inf.scores[i*b_size: (i+1)*b_size] = scores[:, :ent_inf.top_k]
-
-
-    # if use_cuda:
-    #     ent_inf.predictions = ent_inf.predictions.cpu()
-    #     ent_inf.scores = ent_inf.scores.cpu()
 
 def format_predictions(ent_inf, kg):
     """Formats the predictions from the entity inference model.
@@ -121,69 +50,123 @@ def format_predictions(ent_inf, kg):
         predictions[key_ix_str] = [(ix2ent[ix.item()], score.item()) for ix, score in zip(ent_inf.predictions[i], ent_inf.scores[i])] # Match entity and its score
     return predictions
 
-def load_model(argsmodel, kg):
-    """Loads a pre-trained model from the specified path.
+# def load_embedding_model(argsmodel, kg):
+#     """Loads a pre-trained model from the specified path.
 
-    Args:
-        argsmodel (tuple): nargs containing: model type, the path to the .pt model file,
-         the dimension of embeddings, and optionnaly the dissimilarity type / scalar share / nb_filters.
+#     Args:
+#         argsmodel (tuple): nargs containing: model type, the path to the .pt model file,
+#          the dimension of embeddings, and optionnaly the dissimilarity type / scalar share / nb_filters.
 
 
-    Returns:
-        object: The loaded embedding model.
-    """
-    argsmodel[2] = int(argsmodel[2]) # Convert dim size to int
-    try:
-        match argsmodel[0]:
-            case "TransE":
-                emb_model = TransEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3])
-            case "TransH":
-                emb_model = TransHModel(argsmodel[2], kg.n_ent, kg.n_rel)
-            case "TransR":
-                emb_model = TransRModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
-            case "TransD":
-                emb_model = TransDModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
-            case "TorusE":
-                emb_model = TorusEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3]) #dissim type one of  ‘torus_L1’, ‘torus_L2’, ‘torus_eL2’.
-            case "RESCAL":
-                emb_model = RESCALModel(argsmodel[2], kg.n_ent, kg.n_rel)
-            case "DistMult":
-                emb_model = DistMultModel(argsmodel[2], kg.n_ent, kg.n_rel)
-            case "HolE":
-                emb_model = HolEModel(argsmodel[2], kg.n_ent, kg.n_rel)
-            case "ComplEx":
-                emb_model = ComplExModel(argsmodel[2], kg.n_ent, kg.n_rel)
-            case "ANALOGY":
-                emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=argsmodel[3])
-            case "ConvKB":
-                ConvKBModel(argsmodel[2], kg.n_ent, kg.n_rel, nb_filters=argsmodel[3])
-        emb_model.load_state_dict(torch.load(argsmodel[1]))
-    except IndexError:
-        raise IndexError("Index out of range. You may be missing one argument in --model.")
+#     Returns:
+#         object: The loaded embedding model.
+#     """
+#     argsmodel[2] = int(argsmodel[2]) # Convert dim size to int
+#     try:
+#         match argsmodel[0]:
+#             case "TransE":
+#                 emb_model = TransEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3])
+#             case "TransH":
+#                 emb_model = TransHModel(argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "TransR":
+#                 emb_model = TransRModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "TransD":
+#                 emb_model = TransDModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "TorusE":
+#                 emb_model = TorusEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3]) #dissim type one of  ‘torus_L1’, ‘torus_L2’, ‘torus_eL2’.
+#             case "RESCAL":
+#                 emb_model = RESCALModel(argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "DistMult":
+#                 emb_model = DistMultModel(argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "HolE":
+#                 emb_model = HolEModel(argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "ComplEx":
+#                 emb_model = ComplExModel(argsmodel[2], kg.n_ent, kg.n_rel)
+#             case "ANALOGY":
+#                 emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=argsmodel[3])
+#             case "ConvKB":
+#                 ConvKBModel(argsmodel[2], int(argsmodel[3]), kg.n_ent, kg.n_rel)
+#         emb_model.load_state_dict(torch.load(argsmodel[1]))
+#     except IndexError:
+#         raise IndexError("Index out of range. You may be missing one argument in --model.")
  
-    return emb_model
+#     return emb_model
 
-def load_graph(graph_path):
-    """Loads a knowledge graph from the specified .csv file.
+# def load_graph(graph_path):
+#     """Loads a knowledge graph from the specified .csv file.
+
+#     Args:
+#         graph_path (str): The path to the graph file.
+
+#     Returns:
+#         object: The loaded knowledge graph.
+#     """
+#     df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
+#     kg = KnowledgeGraph(df)
+#     return kg
+
+def annotation_matching(args, kg):
+    """Perform annotation matching to target (a phenotype or a gene URI) on a knowledge graph.
 
     Args:
-        graph_path (str): The path to the graph file.
+        args: An object containing command line arguments.
+        kg: A KnowledgeGraph object.
 
     Returns:
-        object: The loaded knowledge graph.
+        df_annot (pandas.DataFrame): A DataFrame containing matches between annotation and the target. It has the following columns:
+            - annotation: The index corresponding to an annotation.
+            - target: The index corresponding to the target.
+        dict_annotations (dict): A dictionary containing all annotation nodes (keys) and their corresponding phenotype or gene (depending on target) URI (values).
+        known_annotations (list): A list of all annotation nodes connected to the queried gene (args.gene) in the KnowledgeGraph kg.   
     """
-    df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
-    kg = KnowledgeGraph(df)
-    return kg
+    df = kg.get_df()
+
+    target = args.gene if args.gene else args.phenotype # The target's URI.
+    
+    # Make a DataFrame containing all triples where the relation is 'has_phenotype' or 'has_gene', depending on the target type.
+    if args.gene:
+        df_annot = df[df['rel'] == 'http://semanticscience.org/resource/SIO_001279']
+        df_target = df[df['rel'] == 'http://www.semanticweb.org/needed-terms#001']
+    else:
+        df_annot = df[df['rel'] == 'http://www.semanticweb.org/needed-terms#001']
+        df_target = df[df['rel'] == 'http://semanticscience.org/resource/SIO_001279']
+
+    # Make a dict containing all annotation nodes and their corresponding endpoint (phenotype or gene) URI.
+    dict_annotations = dict(zip(df_annot['from'], df_annot['to']))
+    
+    # Bypass annotations to find matching phenotypes and genes 
+    matching_rows = df_target[df_target['to'] == target]
+    matching_rows = matching_rows[matching_rows['from'].isin(df_annot['from'])]
+    matching_rows = matching_rows.merge(df_annot[['from', 'to']], on='from', how='left')
+
+    # Store all endpoints connected to annotations connected to the target (ex: all phenotypes connected to the annotation connected to the input target gene)
+    known_endpoints = matching_rows['to_y'] 
+    known_endpoints.drop_duplicates(inplace=True)
+    known_endpoints = known_endpoints.rename('tail')
+
+    # Store all annotations connected to the target
+    known_annotations = matching_rows['from']
+    known_annotations.drop_duplicates(inplace=True)
+    known_annotations = known_annotations.rename('annotation')
+
+    # Make a DataFrame containing all annotations connected to the target and their corresponding phenotype or gene
+    df_annot.drop(['rel', 'to'], axis=1, inplace=True)
+    df_annot = df_annot.rename(columns={'from': 'annotation'})
+    df_annot['target'] = target
+    df_annot = df_annot.drop_duplicates()
+    df_annot = df_annot.applymap(lambda x: kg.ent2ix[x]) # Convert all URIs to indices
+
+    return df_annot, dict_annotations, known_annotations, known_endpoints
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Knowledge Graph Embedding Predictions')
     parser.add_argument('--model', type=str, nargs='+', help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
     parser.add_argument('--filter_known_facts', action='store_true', help='Removes known facts from the predictions')
-    parser.add_argument('--gene', type=str, help='Gene URI')
+    parser.add_argument('--gene', type=str, help='Target gene URI')
+    parser.add_argument('--phenotype', type=str, help='Target phenotype URI')
+    parser.add_argument('--classifier', type=str, help='Path of the classifier model .pkl file')
+
     parser.add_argument('--graph', type=str, required=True, help='Path of the model\'s training data file as .csv(required)')
-    parser.add_argument('--file', type=str, help='CSV file containing queries in the format: [head,relation,?] or [?,relation,tail]')
-    parser.add_argument('--triple', type=str, nargs='+', help='URI of triple like [head] [relation] [?] or [head] [relation] [?] (optional)')
     parser.add_argument('--b_size', type=int, default=264, help='Batch size (optional, default=264)')
     parser.add_argument('--output', type=str, help='Path of the prediction output file')
     return parser.parse_args()
@@ -209,44 +192,13 @@ def main():
     else:
         raise Exception("No knowledge graph provided")
 
-    df = kg.get_df()
-
-
-    df_annot = df[df['rel'] == 'http://semanticscience.org/resource/SIO_001279']
-    # Make a dict matching df_annot['from'] to df_annot['to']
-    dict_annotations = dict(zip(df_annot['from'], df_annot['to']))
-
-    df_gene = df[df['rel'] == 'http://www.semanticweb.org/needed-terms#001'] 
-
-    # Find rows in df_gene where df_gene['to'] matches the target gene
-    matching_rows = df_gene[df_gene['to'] == args.gene]
-
-    # Find rows in matching_rows that share their annotation with df_annot
-    matching_rows = matching_rows[matching_rows['from'].isin(df_annot['from'])]
-
-    # Add col df_annot['to'] to result as 'phenotype' if df_annots['from'] matches result['from']
-    matching_rows = matching_rows.merge(df_annot[['from', 'to']], on='from', how='left')
-
-    known_annotations = matching_rows['from']
-    known_annotations.drop_duplicates(inplace=True)
-    known_annotations = known_annotations.rename('annotation')
-
-    # Remove column `rel`
-    df_annot.drop(['rel', 'to'], axis=1, inplace=True)
-
-    # Rename col 'from' to 'annotation', add col 'gene'
-    df_annot = df_annot.rename(columns={'from': 'annotation'})
-    df_annot['gene'] = args.gene
-
-    # Remove duplicates
-    df_annot = df_annot.drop_duplicates()
-
-    df_annot = df_annot.applymap(lambda x: kg.ent2ix[x])
+    df_annot, dict_annotations, known_annotations, known_endpoints = annotation_matching(args, kg)
 
     # Load the embedding model
     print("Loading model..")
-    emb_model = load_model(args.model, kg)
+    emb_model = load_embedding_model(args.model, kg)
 
+    # Convert to embeddings
     dataset = KGDataset(df_annot)
     batch_size = 264  # Specify your desired batch size
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
@@ -286,31 +238,41 @@ def main():
     t_idx = t_idxs.numpy()
     t_idx_dict = np.vectorize(ix2ent.get)(t_idx) # Match tail entity indices to entity names
 
-    # make all embeddings as a df with 50 features (default) per node (total 100 for head [0:49] and tail [50:99])
+    # Put all embeddings in a df with 50 features (by default, x2 for ComplEx) per node (total 100 for head [0:49] and tail [50:99]) 
     df_emb = torch.cat((h_emb, t_emb), dim=1)
     df_emb = pd.DataFrame(df_emb.numpy())
-    print(df_emb.shape)
-    df_emb['annotation'] = h_idx_dict
-    df_emb['gene'] = t_idx_dict
 
-    predictions = classifier_inference('/home/antoine/KGene2Pheno/binary_classif/rf/rf_model_2023-06-26 13:00:36.058257', df_emb, output_path='/home/antoine/KGene2Pheno/classif_predictions.csv')
+    df_emb['annotation'] = h_idx_dict
+    df_emb['target'] = t_idx_dict
+
+    args.classifier = args.classifier.replace('.pkl', '') # Remove .pkl extension if present
+    predictions = classifier_inference(args.classifier, df_emb)
     
-    # Keep only the last 5 cols
+    # Remove columns containing embedding
     filter_predictions = predictions.iloc[:, -5:]
 
-    # Add col 'known' with value True if the filter_prediction['tail'] of the row is in known_phenotypes, else False
+    # Add col 'known' with value True if the filter_prediction['annotation'] of the row is in known_phenotypes, else False
     filter_predictions['known'] = filter_predictions['annotation'].isin(known_annotations)
-    
-    # Add a col 'matching_phenotype' corresponding to the value of dict_annotations[filter_predictions['annotation']]
-    filter_predictions['matching_phenotype'] = filter_predictions['annotation'].map(dict_annotations)
 
+    # Add a col 'matching_phenotype_or_gene' corresponding to the endpoint of the predicted annotation.
+    # If the target is a phenotype, the endpoint is the gene, and vice versa
+    filter_predictions['matching_phenotype_or_gene'] = filter_predictions['annotation'].map(dict_annotations)
+
+    # If the matching phenotype or gene (the endpoint) of an annotation is known to be linked to the target (ie. the input gene or phenotype URI), add a col 'known_by_inference' with value True, else False.
+    # This is useful because some annotations can be linked to an endpoint linked to the target, but the annotation itself may not linked to the target.
+    # This results in the interaction being classified as not known, even though the interaction between the target and the endpoint is known to happen through another equivalent annotation.
+    # Example: AnnotationA is linked to GeneA and an endpoint PhenotypeA in the graph. A prediction is made for AnnotationA and a target gene GeneT.
+    # The prediction is classified as not known, because AnnotationA is not linked to GeneT. However, PhenotypeA is linked to GeneT through another annotation, Annotation2, so the interaction between GeneT and PhenotypeA is known to happen.
+    # This is why we add the col 'known_by_inference' to keep track of these cases.
+    filter_predictions['known_by_inference'] = filter_predictions['matching_phenotype_or_gene'].isin(known_endpoints)
 
     # Remove all rows where 'prediction_label' = 0. COMMENT OUT TO KEEP NEGATIVE PREDICTIONS
     filter_predictions = filter_predictions[filter_predictions['prediction_label'] == 1]
-    # Order rows by 'prediction_score1' in descending order
+
+    # Order rows by confidence score.
     filter_predictions = filter_predictions.sort_values(by='prediction_score_1', ascending=False)
 
-    filter_predictions.to_csv('/home/antoine/KGene2Pheno/classif_predictions_filt.csv', index=False)
+    filter_predictions.to_csv(args.output, index=False)
 
 if __name__ == '__main__':
     main()
