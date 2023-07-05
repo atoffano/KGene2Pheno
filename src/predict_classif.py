@@ -10,7 +10,6 @@ from torch import cuda
 from torch.utils.data import Dataset
 
 from torchkge.sampling import BernoulliNegativeSampler
-# from torchkge.utils import DataLoader as DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 from torchkge.inference import *
@@ -49,61 +48,6 @@ def format_predictions(ent_inf, kg):
         key_ix_str = ix2ent[known_entity.item()]
         predictions[key_ix_str] = [(ix2ent[ix.item()], score.item()) for ix, score in zip(ent_inf.predictions[i], ent_inf.scores[i])] # Match entity and its score
     return predictions
-
-# def load_embedding_model(argsmodel, kg):
-#     """Loads a pre-trained model from the specified path.
-
-#     Args:
-#         argsmodel (tuple): nargs containing: model type, the path to the .pt model file,
-#          the dimension of embeddings, and optionnaly the dissimilarity type / scalar share / nb_filters.
-
-
-#     Returns:
-#         object: The loaded embedding model.
-#     """
-#     argsmodel[2] = int(argsmodel[2]) # Convert dim size to int
-#     try:
-#         match argsmodel[0]:
-#             case "TransE":
-#                 emb_model = TransEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3])
-#             case "TransH":
-#                 emb_model = TransHModel(argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "TransR":
-#                 emb_model = TransRModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "TransD":
-#                 emb_model = TransDModel(argsmodel[2], argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "TorusE":
-#                 emb_model = TorusEModel(argsmodel[2], kg.n_ent, kg.n_rel, dissimilarity_type=argsmodel[3]) #dissim type one of  ‘torus_L1’, ‘torus_L2’, ‘torus_eL2’.
-#             case "RESCAL":
-#                 emb_model = RESCALModel(argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "DistMult":
-#                 emb_model = DistMultModel(argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "HolE":
-#                 emb_model = HolEModel(argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "ComplEx":
-#                 emb_model = ComplExModel(argsmodel[2], kg.n_ent, kg.n_rel)
-#             case "ANALOGY":
-#                 emb_model = AnalogyModel(argsmodel[2], kg.n_ent, kg.n_rel, scalar_share=argsmodel[3])
-#             case "ConvKB":
-#                 ConvKBModel(argsmodel[2], int(argsmodel[3]), kg.n_ent, kg.n_rel)
-#         emb_model.load_state_dict(torch.load(argsmodel[1]))
-#     except IndexError:
-#         raise IndexError("Index out of range. You may be missing one argument in --model.")
- 
-#     return emb_model
-
-# def load_graph(graph_path):
-#     """Loads a knowledge graph from the specified .csv file.
-
-#     Args:
-#         graph_path (str): The path to the graph file.
-
-#     Returns:
-#         object: The loaded knowledge graph.
-#     """
-#     df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
-#     kg = KnowledgeGraph(df)
-#     return kg
 
 def annotation_matching(args, kg):
     """Perform annotation matching to target (a phenotype or a gene URI) on a knowledge graph.
@@ -242,12 +186,13 @@ def main():
     df_emb = torch.cat((h_emb, t_emb), dim=1)
     df_emb = pd.DataFrame(df_emb.numpy())
 
-    df_emb['annotation'] = h_idx_dict
-    df_emb['target'] = t_idx_dict
-
     args.classifier = args.classifier.replace('.pkl', '') # Remove .pkl extension if present
-    predictions = classifier_inference(args.classifier, df_emb)
+    classifier = load_classifier(args.classifier)
     
+    predictions = predict(classifier, df_emb)
+
+    predictions['annotation'] = h_idx_dict
+    predictions['target'] = t_idx_dict
     # Remove columns containing embedding
     filter_predictions = predictions.iloc[:, -5:]
 

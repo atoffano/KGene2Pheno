@@ -207,7 +207,7 @@ if __name__ == "__main__":
     if os.path.exists("query_result.txt") == True:
         os.remove("query_result.txt")
 
-    keywords = ['gene', 'phenotype', 'interaction', 'disease_plus_ortho',
+    keywords = ['molecular_entity', 'phenotype', 'interaction', 'disease_plus_ortho',
      'disease-ontology', 'phenotype-ontology', 'expression_pattern',
       'lifestage-ontology'] # , 'go-ontology', 'go-annotation'
     load_celegans(keywords, sep=' ')

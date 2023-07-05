@@ -43,8 +43,11 @@ def train_classifier(model_type, data, timestart, logger, device, save=False):
             save_model(model, f'binary_classif/{type}/{type}_model_{timestart}')
     os.remove('logs.log')
 
-def classifier_inference(classif_path, dataframe, output_path):
+def load_classifier(classif_path):
     classifier = load_model(classif_path)
+    return classifier
+    
+def predict(classifier, dataframe):
     predictions = predict_model(classifier, data = dataframe, raw_score=True, verbose=True)
     return predictions
 

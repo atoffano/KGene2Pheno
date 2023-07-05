@@ -12,7 +12,7 @@ from torchkge.utils import DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 
-from src.utils import timer_func
+from utils import timer_func
 
 def generate_emb(emb_model, batch, sampler, device):
     """
@@ -78,6 +78,21 @@ def generate_emb(emb_model, batch, sampler, device):
 
     ent_idxs = (h_idx, t_idx, n_h_idx, n_t_idx) # Store the entity indices
     return ent_idxs, pos_x, neg_x, relation, neg_relation
+
+def get_emb(emb_model, idx):
+    # Returns the corresponding embeddings for the given indices
+    with torch.no_grad():
+        if type(emb_model) == ComplExModel:
+            # Real embeddings
+            emb = emb_model.re_ent_emb(idx)
+
+            # Imaginary embeddings
+            im_emb = emb_model.im_ent_emb(idx)
+            emb = torch.cat((emb, im_emb), dim=1)
+        else:
+            emb = emb_model.ent_emb(idx)
+
+        return emb
 
 @timer_func
 def generate(emb_model, dataset, config, timestart, device):
