@@ -81,75 +81,58 @@ def evaluate(ent_inf, b_size, filter_known_facts, verbose=True):
 
 def format_predictions(args, ent_inf, kg):
     """Formats the predictions from the entity inference model by converting indices to entities and matching them with both their scores and corresponding embeddings.
+        Also includes link existence scores based on head and tail embeddings using the binary classifier if the argument is provided.
 
     Args:
+        args (object): The parsed command line arguments.
         ent_inf (object): The entity inference model.
         kg (object): The knowledge graph.
 
     Returns:
-        dict: A dictionary containing the formatted predictions in the form of {input_entity: [(predicted_entity, score, embedding_of_predicted_entity), ...]}.
+        predictions (list): A list of lists containing an entity and its predictions, their scores based on embeddings only and using the binarty classifier.
     """
-    if args.classifier:
-       classifier = load_classifier(args.classifier)
-
+      
     ix2ent = {v: k for k, v in kg.ent2ix.items()} # Transform all indices back to entities
-    predictions, score = {}, {}
 
-    known_idx = ent_inf.known_entities.numpy()
+    known_idx = ent_inf.known_entities.repeat(args.topk, 1).T # Repeat the known entities to match the number of predictions
+    known_idx = known_idx.reshape(-1) # cat tensor in a single dim
     known_idx_dict = np.vectorize(ix2ent.get)(known_idx) # Match head entity indices to entity names
-    candidate_idx = ent_inf.predictions.numpy()
+
+    candidate_idx = ent_inf.predictions.reshape(-1).T
     candidate_idx_dict = np.vectorize(ix2ent.get)(candidate_idx) # Match tail entity indices to entity names
-    print(ent_inf.known_entities.shape)
-    print(ent_inf.predictions.shape)
-    known_emb = get_emb(ent_inf.model, ent_inf.known_entities)
-    candidate_emb = get_emb(ent_inf.model, ent_inf.predictions)
-    print(candidate_emb.shape)
-    print(known_emb.shape)
-    exit()
-    for i, known_entity in enumerate(ent_inf.known_entities):
-        key_ix_str = ix2ent[known_entity.item()]
-        predictions[key_ix_str] = []
 
-        known_emb = get_emb(ent_inf.model, ent_inf.known_entities[i])
-        candidate_emb = get_emb(ent_inf.model, ent_inf.predictions[i])
-        print(candidate_emb.shape)
-        print(known_emb.shape)
-        if args.classifier:
-            # concat tensors
-            features = torch.cat((known_emb, candidate_emb), dim=0)
-            # convert to df, with each index of the tensor being a feature
-            features = pd.DataFrame(features.numpy()).T
-            classifier_predictions = predict(classifier, features)
+    scores = ent_inf.scores.reshape(-1).T
 
-
-
-            classifier_predictions['annotation'] = known_idx_dict
-            classifier_predictions['target'] = candidate_idx_dict
-            # Remove columns containing embeddings
-            filter_predictions = classifier_predictions.iloc[:, -5:]
-            print(filter_predictions)
-
-        exit()
-        for ix, score in zip(ent_inf.predictions[i], ent_inf.scores[i]): # Match entity and its score
-            predictions[key_ix_str].append((ix2ent[ix.item()], score.item())) # Get the embedding of the predicted entity
-            if args.classifier:
-                # get embedding of the predicted entity and the known entity embedding
-                known_emb = get_emb(ent_inf.model, known_entity.item())
-                candidate_emb = get_emb(ent_inf.model, ix.item())
-                # concat tensors
-                features = torch.cat((known_emb, candidate_emb), dim=0)
-                # convert to df, with each index of the tensor being a feature
-                features = pd.DataFrame(features.numpy()).T
-                classifier_predictions = predict(classifier, features)
-                classifier_predictions['annotation'] = ix2ent[ix.item()]
-                classifier_predictions['target'] = ix2ent[known_entity.item()]
-                # Remove columns containing embeddings
-                filter_predictions = classifier_predictions.iloc[:, -5:]
-                # Transform cols of the df into a list
-                filter_predictions = filter_predictions.values.tolist()
-                predictions[key_ix_str].append(filter_predictions) # Get the embedding of the predicted entity
+    predictions = pd.DataFrame()
+    if args.classifier:
+        predictions = get_classifier_predictions(args, ent_inf) # Add link existence scores based on head and tail embeddings using the binary classifier
+    predictions['input'] = known_idx_dict # Add URIs of the known entities
+    predictions['prediction'] = candidate_idx_dict # Add URIs of the predicted entities
+    predictions['score'] = scores # Add link prediction scores based only on embeddings
 
     return predictions
+
+
+def get_classifier_predictions(args, ent_inf):
+    classifier = load_classifier(args.classifier)
+    features_df = pd.DataFrame() # Array to store the features of each known entity. Will serve as input for the classifier.
+    known_emb = get_emb(ent_inf.model, ent_inf.known_entities) # Get the embedding of each known entity
+
+    for entity_emb, candidates in zip(known_emb, ent_inf.predictions): # For each known entity, get its candidate's embeddings and concat them with the known entity embedding to form a feature vector
+        # get embedding of each candidate
+        candidates_emb = get_emb(ent_inf.model, candidates)
+        # repeat the current known entity embedding to match the number of candidates (topk)
+        k_emb = entity_emb.repeat(candidates_emb.shape[0], 1)
+        embeddings = torch.cat((k_emb, candidates_emb), dim=1)
+        # convert to df, with each index of the tensor being a feature
+        embeddings = pd.DataFrame(embeddings.numpy())
+        features_df = features_df.append(embeddings, ignore_index=True)
+    print(features_df, features_df.shape)
+    classifier_predictions = predict(classifier, features_df)
+    
+    classifier_predictions = classifier_predictions.iloc[:, -3:] # Remove columns containing embeddings, only keep prediction_label  prediction_score_0  prediction_score_1
+
+    return classifier_predictions
 
 def load_embedding_model(argsmodel, kg):
     """Loads a pre-trained model from the specified path.
@@ -282,51 +265,38 @@ def main():
     evaluate(ent_inf_filt, args.b_size, filter_known_facts=True)
     filt_pred = format_predictions(args, ent_inf_filt, kg)
     
-    if not args.filter_known_facts:
-        # Prediction without filtering on known facts
-        ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads)
-        evaluate(ent_inf, args.b_size, filter_known_facts=False)
-        unfilt_pred = format_predictions(args, ent_inf, kg)
+    # Prediction without filtering on known facts
+    ent_inf = EntityInference(emb_model, known_entities, known_relations, top_k=args.topk, missing=missing, dictionary=kg.dict_of_tails if missing == 'tails' else kg.dict_of_heads)
+    evaluate(ent_inf, args.b_size, filter_known_facts=False)
+    unfilt_pred = format_predictions(args, ent_inf, kg)
 
-        # Merge the filtered and unfiltered predictions to find known facts
-        merged_data = {}
-        for key in tqdm(unfilt_pred, desc='Identifying known facts'):
-            merged_data[key] = sorted(list(set(unfilt_pred[key] + filt_pred.get(key, []))), key=lambda x: x[1], reverse=True)
+    # Add a new column 'known' ny merging the two dataframes and looking for differences
+    merged_df = pd.merge(unfilt_pred, filt_pred, how='left', indicator=True) 
+    unfilt_pred['known'] = merged_df['_merge'].map({'both': 'False', 'left_only': 'True'}) 
 
-
-        # Print predictions to console. Green values are known facts.
-        for key in merged_data:
-            values = merged_data[key]
-            colored_values = [
-                colored(str(value[:2]), 'green') if value[0] not in {x[0] for x in filt_pred[key]} else ''
-                for value in values
-            ]
-            print(f"{key}: {', '.join(colored_values)}")
+    # Reorder columns
+    if args.classifier:
+        unfilt_pred = unfilt_pred[['input', 'prediction', 'score', 'prediction_score_1', 'known']]
+        unfilt_pred = unfilt_pred.rename(columns={'prediction_score_1': 'binary_classifier_score'})
     else:
-        for key, values in filt_pred.items():
-            print(f"{key}: {', '.join(map(str, values))}")
-
+        unfilt_pred = unfilt_pred[['input', 'prediction', 'score', 'known']]
+    
+    # Iter over each row and print it in green if it's a known fact, else print it in yellow
+    print("Scores are not comparable between different models. Higher is better.\n \
+    Binary classifier score represent link likelihood between input and prediction between 0-1.\n \
+    Known facts are printed in green, unknown facts in yellow")
+    print(colored(f"{'Input':<50}{'Prediction':<50}{'Score':<10}{'Classifier score':<10}", 'blue'))
+    for index, row in unfilt_pred.iterrows():
+        if row['known'] == 'True':
+            print(colored(f"{row['input']}\t{row['prediction']}\t{row['score']}\t{row['binary_classifier_score'] if args.classifier else ''}", 'green'))
+        else:
+            print(colored(f"{row['input']}\t{row['prediction']}\t{row['score']}\t{row['binary_classifier_score'] if args.classifier else ''}", 'yellow'))
+    
 
     # Output predictions to the output file
     if args.output:
-        ix2rel = {v: k for k, v in kg.rel2ix.items()} # Mapping of relation indices to entity names
-        with open(args.output, 'w') as f:
-            f.write(f"# Predicted using {args.model[0]} model - {args.model[1]}\n")
-            f.write("head,relation,tail,score,source\n")
-            if args.filter_known_facts:
-                for entity, relation in zip(filt_pred, known_relations):
-                    values = filt_pred[entity]
-                    for value in values:
-                        f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]},PRED\n" if missing == 'tails' else f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]},PRED\n")
-            else:
-                for entity, relation in zip(merged_data, known_relations):
-                    values = merged_data[entity]
-                    for value in values:
-                        candidates = {x[0] for x in filt_pred[entity]}
-                        known_fact = "KNOWN" if value[0] not in candidates else "PRED"
-                        f.write(f"{entity}\t{ix2rel[relation.item()]}\t{value[0]}\t{value[1]},{known_fact}\n" if missing == 'tails' else f"{value[0]}\t{ix2rel[relation.item()]}\t{entity}\t{value[1]},{known_fact}\n")
-
-    print(f"Predictions saved to {args.output}")
+        unfilt_pred.to_csv(args.output, index=False)
+        print(f"Predictions saved to {args.output}")
 
 
 

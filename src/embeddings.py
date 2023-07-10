@@ -89,10 +89,10 @@ def get_emb(emb_model, idx):
             # Imaginary embeddings
             im_emb = emb_model.im_ent_emb(idx)
             emb = torch.cat((emb, im_emb), dim=1)
+
         else:
             emb = emb_model.ent_emb(idx)
-
-        return emb
+    return emb
 
 @timer_func
 def generate(emb_model, dataset, config, timestart, device):
