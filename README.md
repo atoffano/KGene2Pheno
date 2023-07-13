@@ -95,6 +95,9 @@ The script will start executing the main function main(). It performs the follow
 
 All logs are saved in the logs folder. Models are saved in the models folder. Embeddings are saved in  data/embeddings.
 
+data/raw/toy-example.txt can be used to test the training script. Simply replace the dataset argument with 'toy-example'. Do not use the --keyword argument. Under the hood, this works as a local dataset. Refer the the 'Using a local dataset' section for more information.
+
+
 ## Inference
 Two scripts will perform link prediction between two nodes.
 - predict.py will perform link prediction between two nodes using the underlyiong scoring function of the embedding model, and then optionally adds the predictions of a binary classifier on the existence of each link.
