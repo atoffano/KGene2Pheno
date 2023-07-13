@@ -6,15 +6,11 @@ from termcolor import colored
 import numpy as np
 import pandas as pd
 import torch
-from torch import cuda
 
-from torchkge.sampling import BernoulliNegativeSampler
-from torchkge.utils import DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 from torchkge.inference import *
 
-from utils import timer_func
 from embeddings import get_emb
 from classifier import load_classifier, predict
 
@@ -114,6 +110,16 @@ def format_predictions(args, ent_inf, kg):
 
 
 def get_classifier_predictions(args, ent_inf):
+    """
+    Retrieves predictions from the binary classifier based on input entities and their candidate embeddings.
+
+    Args:
+        args (object): An object containing classifier information.
+        ent_inf (object): An object containing entity information.
+
+    Returns:
+        pandas.DataFrame: Predictions from the classifier, containing the prediction label and scores.
+    """
     classifier = load_classifier(args.classifier)
     features_df = pd.DataFrame() # Array to store the features of each known entity. Will serve as input for the classifier.
     known_emb = get_emb(ent_inf.model, ent_inf.known_entities) # Get the embedding of each known entity
@@ -127,7 +133,6 @@ def get_classifier_predictions(args, ent_inf):
         # convert to df, with each index of the tensor being a feature
         embeddings = pd.DataFrame(embeddings.numpy())
         features_df = features_df.append(embeddings, ignore_index=True)
-    print(features_df, features_df.shape)
     classifier_predictions = predict(classifier, features_df)
     
     classifier_predictions = classifier_predictions.iloc[:, -3:] # Remove columns containing embeddings, only keep prediction_label  prediction_score_0  prediction_score_1
@@ -235,8 +240,7 @@ def main():
     known_entities = []
     known_relations = []
 
-    if args.triple:
-        # convert triple to indices
+    if args.triple: # convert triple argument to indices
         h, r, t = args.triple
         missing = 'heads' if h == '?' else 'tails'
         if missing == 'tails':
@@ -245,7 +249,7 @@ def main():
             known_entities.append(kg.ent2ix[t])
         known_relations.append(kg.rel2ix[r])
 
-    elif args.file:
+    elif args.file:  # read input file, then convert triples to indices
         # read file, split by comma, convert triples to indices
         with open(args.file, 'r') as f:
             for line in f:
@@ -270,7 +274,7 @@ def main():
     evaluate(ent_inf, args.b_size, filter_known_facts=False)
     unfilt_pred = format_predictions(args, ent_inf, kg)
 
-    # Add a new column 'known' ny merging the two dataframes and looking for differences
+    # Add a new column 'known' by merging the two dataframes and looking for differences. Does not take into account known facts by inference through another annotation (see predict_classif.py)
     merged_df = pd.merge(unfilt_pred, filt_pred, how='left', indicator=True) 
     unfilt_pred['known'] = merged_df['_merge'].map({'both': 'False', 'left_only': 'True'}) 
 

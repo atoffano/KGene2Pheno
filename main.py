@@ -108,12 +108,10 @@ def main():
         match args.dataset:
             case "celegans":
                 dataset = load_celegans(args.keywords, sep=' ')
-            case "local": # Celegans dataset from local file (to avoid sparql interaction)
-                dataset = "data/raw/local.txt"
             case "toy-example": # Debug dataset
                 dataset = "data/raw/toy-example.txt"
             case _:
-                raise Exception("Dataset not supported.")
+                dataset = args.dataset
     
     # Legacy code for incomplete PhenoGeneRanker implementation
     # elif args.dataset and args.method == "PhenoGeneRanker":
@@ -168,9 +166,10 @@ def main():
             kg = src.embeddings.generate(emb_model, kg, config, timestart, device=device)
             kg.to_csv(f"data/embeddings/{config['method']}_{config['dataset']}_{name}_embeddings.csv", index=False)
     
-    # if config['get_scores']:
-    #     get_scores(emb_model, dataset, config)
-        
+    # remove pycaret artifacts
+    if os.path.exists("logs.log") == True:
+        os.remove("logs.log")
+    
 
 if __name__ == "__main__":
     #os.environ["WANDB_API_KEY"]=""

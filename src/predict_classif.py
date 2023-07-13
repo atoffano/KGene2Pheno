@@ -1,16 +1,11 @@
 
-from tqdm import tqdm
 import argparse
-from termcolor import colored
 
 import numpy as np
 import pandas as pd
 import torch
-from torch import cuda
 from torch.utils.data import Dataset
 
-from torchkge.sampling import BernoulliNegativeSampler
-from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 from torchkge.inference import *
  
@@ -19,6 +14,16 @@ from predict import load_embedding_model, load_graph
 from classifier import *
 
 class KGDataset(Dataset):
+    """
+    A custom dataset class for handling graph data stored in a pandas DataFrame.
+
+    Parameters:
+        dataframe (pandas.DataFrame): The input DataFrame containing the data.
+
+    Attributes:
+        data (numpy.ndarray): A 2D array representing the data from the DataFrame.
+
+    """
     def __init__(self, dataframe):
         self.data = dataframe.values
 
@@ -104,7 +109,7 @@ def annotation_matching(args, kg):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Knowledge Graph Embedding Predictions')
-    parser.add_argument('--model', type=str, nargs='+', help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
+    parser.add_argument('--model', type=str, nargs='+', required=True, help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
     parser.add_argument('--filter_known_facts', action='store_true', help='Removes known facts from the predictions')
     parser.add_argument('--gene', type=str, help='Target gene URI')
     parser.add_argument('--phenotype', type=str, help='Target phenotype URI')
