@@ -157,7 +157,8 @@ All models are available in the models folder. Classification models are availab
 All embeddings are available in the data/embeddings folder.
 All SPARQL queries are available in the queries folder.
 
-The MSc thesis resulting from this project goes into detail on the methods used and the results obtained. Results and figures presented in the thesis are available in the figures folder.
+For questions about the overall methodology, please refer to the MSc thesis resulting from this project which goes into detail on the methods used and the results obtained.
+Results and figures presented in the thesis are available in the figures folder.
 
 Wandb tracking has been used throughout the project. While tracking has been disabled, it can easily be added by uncommenting the relevant lines in the code.
 
