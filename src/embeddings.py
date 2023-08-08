@@ -12,7 +12,7 @@ from torchkge.utils import DataLoader
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 
-from utils import timer_func
+from src.utils import timer_func
 
 def generate_emb(emb_model, batch, sampler, device):
     """

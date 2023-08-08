@@ -1,7 +1,6 @@
 import argparse
 import os
-import sys
-import pandas as pd
+
 # import wandb
 import logging
 import torch
@@ -65,13 +64,13 @@ def main():
         os.remove("query_result.txt")
 
     # Start time  
-    timestart = dt.now() 
+    timestart = dt.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
-    # Create a logger
-    if os.path.exists("logs") == False:
-        os.mkdir("logs")
-    logging.basicConfig(filename=f'logs/{timestart}_{config["method"]}_{config["dataset"]}.log',
+    # Create a file handler for the logger
+    logfile = f'logs/{timestart}_{config["method"]}_{config["dataset"]}.log'
+
+    logging.basicConfig(filename=logfile,
                         level=logging.INFO,
                         format='%(asctime)s %(levelname)s: %(message)s')
     logger = logging.getLogger()
@@ -165,11 +164,6 @@ def main():
         for kg, name in zip([kg_train, kg_test], ["train", "test"]):
             kg = src.embeddings.generate(emb_model, kg, config, timestart, device=device)
             kg.to_csv(f"data/embeddings/{config['method']}_{config['dataset']}_{name}_embeddings.csv", index=False)
-    
-    # remove pycaret artifacts
-    if os.path.exists("logs.log") == True:
-        os.remove("logs.log")
-    
 
 if __name__ == "__main__":
     #os.environ["WANDB_API_KEY"]=""

@@ -4,7 +4,7 @@ This repository stores the code required to derive insight from the wormbase dat
 ## Prerequisites
 
 Make sure you have the following dependencies installed:
-- python 3.10 or higher
+- python 3.10
 - pandas
 - SPARQLWrapper
 - torch
@@ -12,14 +12,12 @@ Make sure you have the following dependencies installed:
 - sklearn
 - pycaret
 
-You can install the dependencies using the following command line or with the provided requirements.txt file:
+You can install the dependencies using the following command line:
 
 ```bash
 pip install torchkge pycaret torch SPARQLWrapper pandas numpy
 ```
-```bash
-pip install -r requirements.txt
-```
+
 
 Also, due to a bug in the TorchKGE package, relation prediction evaluation of the TorusE model does not work, as a parameter that is not defined in TorusE is called. If you plan to use this model along with the mentionned evaluation method, an easy fix for this is to replace in torchkge/models/translation.py the line 765:
 
@@ -32,6 +30,9 @@ To use the code, follow these steps:
 
 Clone the repository or download the code files to your local machine.
 
+Test that everything works fine using:
+    python main.py --method TransE --dataset toy-example --n_epochs 20 --batch_size 3072 --lr 0.0001 --normalize_parameters --loss_fn margin --ent_emb_dim 50 --split_ratio 0.8 --dissimilarity_type L1 --margin 1 --n_filters 10 --init_transe
+    
 Run the script using the following command:
 
     python main.py [arguments]
