@@ -164,12 +164,3 @@ Results and figures presented in the thesis are available in the figures folder.
 Wandb tracking has been used throughout the project. While tracking has been disabled, it can easily be added by uncommenting the relevant lines in the code.
 
 For more information on the code and its functionality, refer to the comments within the code files.
-
-## Citations
-    @inproceedings{arm2020torchkge,
-        title={TorchKGE: Knowledge Graph Embedding in Python and PyTorch},
-        author={Armand Boschin},
-        year={2020},
-        month={Aug},
-        booktitle={International Workshop on Knowledge Graph: Mining Knowledge Graph for Deep Insights},
-    }
