@@ -68,6 +68,8 @@ def main():
 
 
     # Create a file handler for the logger
+    if not os.path.exists('./logs/'):
+        os.makedirs('./logs/')
     logfile = f'logs/{timestart}_{config["method"]}_{config["dataset"]}.log'
 
     logging.basicConfig(filename=logfile,
