@@ -119,20 +119,25 @@ def evaluate_emb_model(emb_model, kg_eval, task, device, logger):
     # wandb.log({'MRR': evaluator.mrr()[0]})
 
 @timer_func
-def load_celegans(keywords, sep):
+def load_celegans(keywords, endpoint, sep):
     print(f'{dt.now()} - Querying celegans SPARQL endpoint with the following queries : {keywords}.')
     queries = queries_from_features(keywords)
-    query_db(queries, sep)
+    query_db(queries, endpoint, sep)
     return 'query_result.txt'
 
-def load_by_query(query):
-    query = add_prefixes(query)
-    query_db([query])
+def add_prefixes(query):
+    prefixes = open("sparql_queries/PREFIXES.txt", "r").read()
+    return f"{prefixes}\n{query}"
 
-def query_db(queries, sep):
+def load_by_query(query, endpoint):
+    query = add_prefixes(query)  
+    query_db([query], endpoint, sep=' ')
+
+
+def query_db(queries, eplink, sep):
     """Queries the database with a SPARQL query that returns a graph (ie uses a CONSTRUCT clause)."""
     # Set up the SPARQL endpoint
-    sparql = SPARQLWrapper("http://cedre-14a.med.univ-rennes1.fr:3030/WS287-rdf/sparql") #TODO: make this endpoint default, but allow other endpoint in arguments
+    sparql = SPARQLWrapper(eplink) #end point link
     warnings.filterwarnings("ignore")
     for query in tqdm(queries, desc="Querying SPARQL endpoint..."):
 
