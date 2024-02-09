@@ -190,7 +190,12 @@ def load_graph(graph_path):
     Returns:
         object: The loaded knowledge graph.
     """
-    df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
+    # Load the graph
+    df = pd.read_csv(graph_path, sep=',', header=0, names=['from', 'to', 'rel'])
+    #print(df.head())
+    #df = df.drop(columns=['num']) # Drop the first column
+    #print(df.head())
+    # Create the KnowledgeGraph
     kg = KnowledgeGraph(df)
     return kg
 
@@ -253,6 +258,11 @@ def main():
         # read file, split by comma, convert triples to indices
         with open(args.file, 'r') as f:
             for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                # else:
+                #     print(line.split(','))
                 h, r, t = line.strip().split(',')
                 missing = 'heads' if h == '?' else 'tails'
                 if missing == 'tails':
