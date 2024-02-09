@@ -109,7 +109,7 @@ def annotation_matching(args, kg):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Knowledge Graph Embedding Predictions')
-    parser.add_argument('--model', type=str, nargs='+', required=True, help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
+    parser.add_argument('--model', type=str, nargs='+', help='[Model type] [Model path] [embedding dim] [Additional param : One of dissmimilary func (L1/L2) (TorusE/TransE), nb_filter (ConvKB), scalar share (ANALOGY)]', required=True)
     parser.add_argument('--filter_known_facts', action='store_true', help='Removes known facts from the predictions')
     parser.add_argument('--gene', type=str, help='Target gene URI')
     parser.add_argument('--phenotype', type=str, help='Target phenotype URI')
