@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--method', required=True, help='Name of the method')
     parser.add_argument('--dataset', required=False, help='Name of the dataset')
     parser.add_argument('--query', default=None, help='A SPARQL query')
+    parser.add_argument('--end_point_link', default='http://cedre-14a.med.univ-rennes1.fr:3030/WS287-rdf/sparql', help='SPARQL endpoint link')
 
     parser.add_argument('--normalize_parameters', action='store_true', help='Whether to normalize entity embeddings. Recommended.')
     parser.add_argument('--train_classifier', nargs='*', help='Train a classifier on the embeddings. \
@@ -102,13 +103,13 @@ def main():
 
 
     # Gather data, either from local file or SPARQL endpoint
-    if args.query: # Query the SPARQL endpoint
-        dataset = load_by_query(args.query)
+    if args.query and args.end_point_link:
+        dataset = load_by_query(args.query, args.end_point_link)
 
     elif args.dataset and args.method != "PhenoGeneRanker":
         match args.dataset:
             case "celegans":
-                dataset = load_celegans(args.keywords, sep=' ')
+                dataset = load_celegans(args.keywords, args.end_point_link, sep=' ')
             case "toy-example": # Debug dataset
                 dataset = "data/raw/toy-example.txt"
             case _:
