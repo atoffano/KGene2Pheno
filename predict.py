@@ -11,8 +11,8 @@ from torchkge.data_structures import KnowledgeGraph
 from torchkge.models import *
 from torchkge.inference import *
 
-from embeddings import get_emb
-from classifier import load_classifier, predict
+from src.embeddings import get_emb
+from src.classifier import load_classifier, predict
 
 def evaluate(ent_inf, b_size, filter_known_facts, verbose=True):
     """Performs evaluation on the given entity inference model.
