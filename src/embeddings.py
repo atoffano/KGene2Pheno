@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import torch
 
+import os
+
 from torch import cuda
 
 from torchkge.sampling import BernoulliNegativeSampler
@@ -154,6 +156,8 @@ def generate(emb_model, dataset, config, timestart, device):
     df = df.sample(frac=1).reset_index(drop=True)
 
     if config['save_embeddings'] == True:
+        if not os.path.exists('data/embeddings'):
+            os.makedirs('data/embeddings')
         df.to_csv(f'data/embeddings/{timestart}_{config["method"]}', index=False)
 
     return df
