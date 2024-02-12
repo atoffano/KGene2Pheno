@@ -53,3 +53,4 @@ models_classif
 __pycache__
 .err
 .out
+*.rq
