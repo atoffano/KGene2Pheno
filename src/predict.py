@@ -190,7 +190,7 @@ def load_graph(graph_path):
     Returns:
         object: The loaded knowledge graph.
     """
-    df = pd.read_csv(graph_path, sep=' ', header=None, names=['from', 'rel', 'to'])
+    df = pd.read_csv(graph_path, sep=',', header=0, names=['from', 'to', 'rel'])
     kg = KnowledgeGraph(df)
     return kg
 
