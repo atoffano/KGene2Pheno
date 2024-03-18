@@ -49,3 +49,4 @@ PREFIX SGD: <https://www.yeastgenome.org/locus/>
 PREFIX TAIR: <https://www.arabidopsis.org/servlets/TairObject?accession=locus:>
 PREFIX ZFIN: <https://www.zfin.org/>
 PREFIX nt: <http://www.semanticweb.org/needed-terms#>
+PREFIX wormseq: <https://wormseq.org/>
