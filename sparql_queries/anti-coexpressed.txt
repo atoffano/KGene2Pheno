@@ -1,0 +1,6 @@
+CONSTRUCT {    
+    ?wbgene1 wormseq:is_anti-coexpressed_with wbgene2 .
+}
+WHERE {
+  ?wbgene1 wormseq:is_anti-coexpressed_with wbgene2 .
+}
