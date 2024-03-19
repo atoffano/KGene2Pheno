@@ -1,0 +1,11 @@
+CONSTRUCT {
+    ?geneid1 nt:physically_interacts_with ?geneid2 .
+}
+WHERE {
+    ?wbinter nt:001 ?geneid1 .
+    ?wbinter nt:001 ?geneid2 .
+    ?wbinter rdf:type ?rel .
+    ?wbinter  sio:000628 ?interaction_type .
+    FILTER (?geneid1 != ?geneid2)
+}
+            

@@ -1,0 +1,10 @@
+CONSTRUCT {
+    ?geneid sio:000300 ?expr_value .
+    ?geneid nt:is_expressed_at ?lifestage .                
+}
+WHERE {
+    ?wbexpr_val nt:001 ?geneid .
+    ?wbexpr_val sio:000300 ?expr_value .
+    ?wbexpr_val nt:002 ?lifestage .
+}
+            

@@ -1,0 +1,16 @@
+CONSTRUCT {
+?geneid ?linktype ?goid .
+}
+WHERE {
+?wbdata nt:001 ?geneid .
+?wbdata ?linktype ?goid .
+FILTER (REGEX(STR(?goid), "^" + STR(go:)))
+FILTER (
+    ?linktype = ro:0002327 || # enables
+    ?linktype = ro:0001025 || # located_in
+    ?linktype = sio:000068 || # part_of
+    ?linktype = ro:0002331 || # involved_in
+    ?linktype = sio:001403 # is associated with
+)
+}
+            

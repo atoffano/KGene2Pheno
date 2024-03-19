@@ -1,0 +1,11 @@
+CONSTRUCT {                
+    ?geneid nt:is_expressed_in ?expr_id .
+    ?geneid nt:is_expressed_at ?wblifestage .
+    
+}
+WHERE {
+    ?wbexpr_pat nt:001 ?geneid .
+    ?wbexpr_pat nt:004 ?expr_id .
+    ?wbexpr_pat nt:002 ?wblifestage .
+}
+            
